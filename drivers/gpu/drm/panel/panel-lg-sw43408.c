@@ -66,7 +66,8 @@ struct panel_desc {
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
 
-	const struct panel_cmd *on_cmds;
+	const struct panel_cmd *on_cmds_1;
+	const struct panel_cmd *on_cmds_2;
 };
 
 struct panel_info {
@@ -77,6 +78,8 @@ struct panel_info {
 	struct backlight_device *backlight;
 	u32 brightness;
 	u32 max_brightness;
+
+	u32 init_delay_us;
 
 	struct regulator_bulk_data supplies[ARRAY_SIZE(regulator_names)];
 
@@ -193,7 +196,7 @@ static int lg_panel_unprepare(struct drm_panel *panel)
 	if (!pinfo->prepared)
 		return 0;
 
-	ret = mipi_dsi_dcs_write(pinfo->link, MIPI_DCS_SET_DISPLAY_OFF, NULL, 0);
+	ret = mipi_dsi_dcs_set_display_off(pinfo->link);
 	if (ret < 0) {
 		DRM_DEV_ERROR(panel->dev,
 			"set_display_off cmd failed ret = %d\n",
@@ -203,11 +206,13 @@ static int lg_panel_unprepare(struct drm_panel *panel)
 	/* 120ms delay required here as per DCS spec */
 	msleep(120);
 
-	ret = mipi_dsi_dcs_write(pinfo->link, MIPI_DCS_ENTER_SLEEP_MODE, NULL, 0);
+	ret = mipi_dsi_dcs_enter_sleep_mode(pinfo->link);
 	if (ret < 0) {
 		DRM_DEV_ERROR(panel->dev,
 			"enter_sleep cmd failed ret = %d\n", ret);
 	}
+	/* 0x64 = 100ms delay */
+	msleep(100);
 
 	ret = lg_panel_power_off(panel);
 	if (ret < 0)
@@ -263,17 +268,57 @@ static int lg_panel_prepare(struct drm_panel *panel)
 	if (pinfo->prepared)
 		return 0;
 
+	usleep_range(pinfo->init_delay_us, pinfo->init_delay_us);
+
 	err = lg_panel_power_on(pinfo);
 	if (err < 0)
 		goto poweroff;
 
-	/* send init code */
-	err = send_mipi_cmds(panel, pinfo->desc->on_cmds);
+	/* send first part of init cmds */
+	err = send_mipi_cmds(panel, pinfo->desc->on_cmds_1);
+
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev,
-				"failed to send DCS Init Code: %d\n", err);
+				"failed to send DCS Init 1st Code: %d\n", err);
 		goto poweroff;
 	}
+
+	err = mipi_dsi_dcs_exit_sleep_mode(pinfo->link);
+	if (err < 0) {
+		DRM_DEV_ERROR(panel->dev, "failed to exit sleep mode: %d\n",
+			      err);
+		goto poweroff;
+	}
+	/* 0x87 = 135 ms delay */
+	msleep(135);
+
+	/* Set DCS_COMPRESSION_MODE */
+	err = mipi_dsi_dcs_write(pinfo->link, MIPI_DSI_DCS_COMPRESSION_MODE, (u8[]){ 0x11 }, 1);
+	if (err < 0) {
+		DRM_DEV_ERROR(panel->dev,
+				"failed to set compression mode: %d\n", err);
+		goto poweroff;
+	}
+
+
+	/* Send rest of the init cmds */
+	err = send_mipi_cmds(panel, pinfo->desc->on_cmds_2);
+
+	if (err < 0) {
+		DRM_DEV_ERROR(panel->dev,
+				"failed to send DCS Init 2nd Code: %d\n", err);
+		goto poweroff;
+	}
+
+	err = mipi_dsi_dcs_set_display_on(pinfo->link);
+	if (err < 0) {
+		DRM_DEV_ERROR(panel->dev,
+				"failed to Set Display ON: %d\n", err);
+		goto poweroff;
+	}
+
+	/* 0x32 = 50ms delay */
+	msleep(120);
 
 	pinfo->prepared = true;
 
@@ -397,14 +442,17 @@ static const struct drm_panel_funcs panel_funcs = {
 	.get_modes = lg_panel_get_modes,
 };
 
-static const struct panel_cmd lg_sw43408_on_cmds[] = {
+static const struct panel_cmd lg_sw43408_on_cmds_1[] = {
 	_INIT_CMD(0x00, 0x26, 0x02),	// MIPI_DCS_SET_GAMMA_CURVE, 0x02
 	_INIT_CMD(0x00, 0x35, 0x00),	// MIPI_DCS_SET_TEAR_ON
 	_INIT_CMD(0x00, 0x53, 0x0C, 0x30),
 	_INIT_CMD(0x00, 0x55, 0x00, 0x70, 0xDF, 0x00, 0x70, 0xDF),
 	_INIT_CMD(0x00, 0xF7, 0x01, 0x49, 0x0C),
-	_INIT_CMD(0x00, 0x11),	// MIPI_DCS_EXIT_SLEEP_MODE
-	_INIT_CMD(0x00, 0x11),	// repetition, but what does a 07 DTYPE mean?
+
+	{},
+};
+
+static const struct panel_cmd lg_sw43408_on_cmds_2[] = {
 	_INIT_CMD(0x00, 0xB0, 0xAC),
 	_INIT_CMD(0x00, 0xCD,
 			0x00, 0x00, 0x00, 0x19, 0x19, 0x19, 0x19, 0x19,
@@ -453,7 +501,8 @@ static const struct panel_desc lg_panel_desc = {
 	.mode_flags = MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
-	.on_cmds = lg_sw43408_on_cmds,
+	.on_cmds_1 = lg_sw43408_on_cmds_1,
+	.on_cmds_2 = lg_sw43408_on_cmds_2,
 };
 
 
@@ -505,8 +554,9 @@ static int panel_add(struct panel_info *pinfo)
 {
 	struct device *dev = &pinfo->link->dev;
 	int i, ret;
-
 pr_err("In sw43408 panel add\n");
+
+	pinfo->init_delay_us = 5000;
 
 	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++)
 		pinfo->supplies[i].supply = regulator_names[i];
@@ -533,14 +583,12 @@ pr_err("In sw43408 panel add\n");
 
 	drm_panel_init(&pinfo->base);
 pr_err("In sw43408 panel add: after drm_panel_init\n");
-
 	pinfo->base.funcs = &panel_funcs;
 	pinfo->base.dev = &pinfo->link->dev;
 
 	ret = drm_panel_add(&pinfo->base);
 	if (ret < 0)
 		return ret;
-
 pr_err("In sw43408 panel add: drm_panel_add returned %d\n", ret);
 	return 0;
 }
@@ -577,7 +625,7 @@ pr_err("In sw43408 panel probe\n");
 
 	err = mipi_dsi_attach(dsi);
 pr_err("In sw43408 panel probe: mipi_dsi_attach returned: %d\n", err);
-	return err;
+	return err;	
 }
 
 static int panel_remove(struct mipi_dsi_device *dsi)
