@@ -1,0 +1,14 @@
+. ${ROOT_DIR}/blueline/build.config.common
+. ${ROOT_DIR}/blueline/build.config.aarch64
+
+BRANCH=am-p3-gki
+KERNEL_DIR=blueline
+
+DEFCONFIG=blueline_gki_defconfig
+PRE_DEFCONFIG_CMDS="cat ./blueline/arch/arm64/configs/gki_defconfig ./blueline/arch/arm64/configs/db845c_gki.fragment ./blueline/arch/arm64/configs/blueline_gki.fragment > ./blueline/arch/arm64/configs/${DEFCONFIG};"
+POST_DEFCONFIG_CMDS="rm ./blueline/arch/arm64/configs/${DEFCONFIG}"
+
+FILES="
+arch/arm64/boot/Image.gz
+arch/arm64/boot/dts/qcom/sdm845-blueline.dtb
+"

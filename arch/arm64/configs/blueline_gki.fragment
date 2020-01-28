@@ -1,0 +1,5 @@
+CONFIG_CMDLINE="console=ttyMSM0,115200n8 firmware_class.path=/vendor/firmware/ androidboot.hardware=pixel3_mainline init=/init androidboot.boot_devices=soc/1d84000.ufshc androidboot.serialno=89EX09405 printk.devkmsg=on androidboot.super_partition=system_b" 
+CONFIG_CMDLINE_FORCE=y
+CONFIG_REGULATOR_QCOM_LABIBB=m
+CONFIG_DRM_PANEL_LG_SW43408=m
+
