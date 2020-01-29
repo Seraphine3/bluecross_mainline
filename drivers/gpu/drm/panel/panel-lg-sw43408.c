@@ -91,11 +91,62 @@ struct panel_info {
 
 	bool prepared;
 	bool enabled;
+	bool first_enable;
 };
 
 static inline struct panel_info *to_panel_info(struct drm_panel *panel)
 {
 	return container_of(panel, struct panel_info, base);
+}
+
+
+/*
+ * Need to reset gpios and regulators once in the beginning,
+ */
+static int panel_reset_at_beginning(struct panel_info * pinfo)
+{
+	int ret = 0, i;
+
+	DRM_DEV_ERROR(pinfo->base.dev,
+					"panel_reset_at_beginning\n");
+	/* enable supplies */
+	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
+		ret = regulator_set_load(pinfo->supplies[i].consumer,
+					regulator_enable_loads[i]);
+		if (ret)
+			return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
+	if (ret < 0)
+		return ret;
+
+	/* Disable supplies */
+	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
+		ret = regulator_set_load(pinfo->supplies[i].consumer,
+				regulator_disable_loads[i]);
+		if (ret) {
+			DRM_DEV_ERROR(pinfo->base.dev,
+				"regulator_set_load failed %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = regulator_bulk_disable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Reset sequence of LG sw43408 panel requires the panel to be
+	 * out of reset for 9ms, followed by being held in reset
+	 * for 1ms and then out again
+	 */
+	gpiod_set_value(pinfo->reset_gpio, 1);
+	usleep_range(9000, 10000);
+	gpiod_set_value(pinfo->reset_gpio, 0);
+	usleep_range(1000, 2000);
+	gpiod_set_value(pinfo->reset_gpio, 1);
+	usleep_range(9000, 10000);
 }
 
 static int send_mipi_cmds(struct drm_panel *panel, const struct panel_cmd *cmds)
@@ -147,6 +198,8 @@ static int panel_set_pinctrl_state(struct panel_info *panel, bool enable)
 
 static int lg_panel_disable(struct drm_panel *panel)
 {
+return 0;
+#if 0
 	struct panel_info *pinfo = to_panel_info(panel);
 pr_err("In sw43408 panel_disable\n");
 	backlight_disable(pinfo->backlight);
@@ -154,6 +207,7 @@ pr_err("In sw43408 panel_disable\n");
 	pinfo->enabled = false;
 
 	return 0;
+#endif
 }
 
 static int lg_panel_power_off(struct drm_panel *panel)
@@ -189,6 +243,9 @@ pr_err("In sw43408 panel_power_off\n");
 
 static int lg_panel_unprepare(struct drm_panel *panel)
 {
+pr_err("In sw43408 panel_unprepare - returning 0\n");
+return 0;
+#if 0
 	struct panel_info *pinfo = to_panel_info(panel);
 	int ret;
 
@@ -221,7 +278,7 @@ pr_err("In sw43408 panel_unprepare\n");
 	pinfo->prepared = false;
 
 	return ret;
-
+#endif
 }
 
 static int lg_panel_power_on(struct panel_info *pinfo)
@@ -265,6 +322,16 @@ static int lg_panel_prepare(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 	int err;
 pr_err("In sw43408 panel_prepare\n");
+
+	if (unlikely(pinfo->first_enable)) {
+		pinfo->first_enable = false;
+		err = panel_reset_at_beginning(pinfo);
+		if (err < 0) {
+		pr_err("sw43408 panel_reset_at_beginning failed: %d\n", err);
+			return err;
+		}
+	}
+
 	if (pinfo->prepared)
 		return 0;
 
