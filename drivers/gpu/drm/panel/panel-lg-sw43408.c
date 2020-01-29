@@ -147,6 +147,7 @@ static int panel_reset_at_beginning(struct panel_info * pinfo)
 	usleep_range(1000, 2000);
 	gpiod_set_value(pinfo->reset_gpio, 1);
 	usleep_range(9000, 10000);
+	return 0;
 }
 
 static int send_mipi_cmds(struct drm_panel *panel, const struct panel_cmd *cmds)
