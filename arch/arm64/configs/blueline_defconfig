@@ -52,7 +52,7 @@ CONFIG_SWP_EMULATION=y
 CONFIG_CP15_BARRIER_EMULATION=y
 CONFIG_SETEND_EMULATION=y
 CONFIG_RANDOMIZE_BASE=y
-CONFIG_CMDLINE="console=ttyMSM0,115200n8 firmware_class.path=/vendor/firmware/ androidboot.hardware=pixel3_mainline init=/init androidboot.boot_devices=soc/1d84000.ufshc androidboot.serialno=89EX09405 printk.devkmsg=on androidboot.super_partition=system_b"
+CONFIG_CMDLINE="console=ttyMSM0,115200n8 firmware_class.path=/vendor/firmware/ androidboot.hardware=pixel3_mainline init=/init androidboot.boot_devices=soc/1d84000.ufshc androidboot.serialno=89EX09405 printk.devkmsg=on androidboot.super_partition=system_b pd_ignore_unused clk_ignore_inherited"
 CONFIG_CMDLINE_FORCE=y
 CONFIG_HIBERNATION=y
 CONFIG_PM_WAKELOCKS=y
