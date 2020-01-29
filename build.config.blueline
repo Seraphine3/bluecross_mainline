@@ -1,12 +1,12 @@
-. ${ROOT_DIR}/blueline/build.config.common
-. ${ROOT_DIR}/blueline/build.config.aarch64
+. ${ROOT_DIR}/common/build.config.common
+. ${ROOT_DIR}/common/build.config.aarch64
 
 BRANCH=am-p3-gki
-KERNEL_DIR=blueline
+KERNEL_DIR=common
 
 DEFCONFIG=blueline_gki_defconfig
-PRE_DEFCONFIG_CMDS="cat ./blueline/arch/arm64/configs/gki_defconfig ./blueline/arch/arm64/configs/db845c_gki.fragment ./blueline/arch/arm64/configs/blueline_gki.fragment > ./blueline/arch/arm64/configs/${DEFCONFIG};"
-POST_DEFCONFIG_CMDS="rm ./blueline/arch/arm64/configs/${DEFCONFIG}"
+PRE_DEFCONFIG_CMDS="cat ./common/arch/arm64/configs/gki_defconfig ./common/arch/arm64/configs/db845c_gki.fragment ./common/arch/arm64/configs/blueline_gki.fragment > ./common/arch/arm64/configs/${DEFCONFIG};"
+POST_DEFCONFIG_CMDS="rm ./common/arch/arm64/configs/${DEFCONFIG}"
 
 FILES="
 arch/arm64/boot/Image.gz
