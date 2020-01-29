@@ -148,7 +148,7 @@ static int panel_set_pinctrl_state(struct panel_info *panel, bool enable)
 static int lg_panel_disable(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
-
+pr_err("In sw43408 panel_disable\n");
 	backlight_disable(pinfo->backlight);
 
 	pinfo->enabled = false;
@@ -160,7 +160,7 @@ static int lg_panel_power_off(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 	int i, ret = 0;
-
+pr_err("In sw43408 panel_power_off\n");
 	gpiod_set_value(pinfo->reset_gpio, 0);
 
         ret = panel_set_pinctrl_state(pinfo, false);
@@ -192,6 +192,7 @@ static int lg_panel_unprepare(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 	int ret;
 
+pr_err("In sw43408 panel_unprepare\n");
 	if (!pinfo->prepared)
 		return 0;
 
@@ -226,7 +227,7 @@ static int lg_panel_unprepare(struct drm_panel *panel)
 static int lg_panel_power_on(struct panel_info *pinfo)
 {
 	int ret, i;
-
+pr_err("In sw43408 panel_power_on\n");
 	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
 		ret = regulator_set_load(pinfo->supplies[i].consumer,
 					regulator_enable_loads[i]);
@@ -263,7 +264,7 @@ static int lg_panel_prepare(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 	int err;
-
+pr_err("In sw43408 panel_prepare\n");
 	if (pinfo->prepared)
 		return 0;
 
@@ -335,7 +336,7 @@ static int lg_panel_enable(struct drm_panel *panel)
 
 	if (pinfo->enabled)
 		return 0;
-
+pr_err("In sw43408 panel_enable\n");
 	ret = backlight_enable(pinfo->backlight);
 	if (ret) {
 		DRM_DEV_ERROR(panel->drm->dev,
@@ -353,7 +354,7 @@ static int lg_panel_get_modes(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 	const struct drm_display_mode *m = pinfo->desc->display_mode;
 	struct drm_display_mode *mode;
-
+pr_err("In sw43408 panel_get_modes\n");
 	mode = drm_mode_duplicate(panel->drm, m);
 	if (!mode) {
 		DRM_DEV_ERROR(panel->drm->dev, "failed to add mode %ux%u@%u\n",
@@ -398,9 +399,9 @@ static int lg_panel_backlight_get_brightness(struct backlight_device *bl)
 	u16 brightness = 0;
 
 	ret = mipi_dsi_dcs_get_display_brightness(pinfo->link, &brightness);
+pr_err("sw43408: panel_backlight_get_brightness: current brightness is: %d, ret: %d\n", brightness, ret);
 	if (ret < 0)
 		return ret;
-pr_err("sw43408: panel_backlight_get_brightness: current brightness is: %d\n", brightness);
 
 	return brightness & 0xff;
 }
@@ -416,6 +417,7 @@ static int lg_panel_backlight_init(struct panel_info *pinfo)
 	struct backlight_device	*bl;
 	struct device *dev = &pinfo->link->dev;
 
+pr_err("sw43408: panel_backlight_init\n");
 	props.type = BACKLIGHT_RAW;
 // Set the max_brightness to 255 to begin with
 	props.max_brightness = pinfo->max_brightness = 255;
@@ -653,7 +655,7 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 static void panel_shutdown(struct mipi_dsi_device *dsi)
 {
 	struct panel_info *pinfo = mipi_dsi_get_drvdata(dsi);
-
+pr_err("sw43408: panel_shutdown\n");
 	lg_panel_disable(&pinfo->base);
 	lg_panel_unprepare(&pinfo->base);
 }
