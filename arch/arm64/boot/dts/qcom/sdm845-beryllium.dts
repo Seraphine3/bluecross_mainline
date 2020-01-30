@@ -685,3 +685,15 @@
 	qcom,cabc;
 	qcom,switching-freq = <600>;
 };
+
+&labibb {
+	status = "okay";
+};
+
+&ibb_regulator {
+	regulator-always-on;
+};
+
+&lab_regulator {
+	regulator-always-on;
+};
