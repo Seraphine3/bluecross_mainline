@@ -355,7 +355,7 @@
 &gpu {
 	zap-shader {
 		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sdm845/a630_zap.mbn";
+		//firmware-name = "qcom/sdm845/a630_zap.mbn";
 	};
 };
 
