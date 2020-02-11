@@ -49,6 +49,17 @@ void drm_dsc_dp_pps_header_init(struct dp_sdp_header *pps_header)
 }
 EXPORT_SYMBOL(drm_dsc_dp_pps_header_init);
 
+void drm_dsc_dsi_pps_header_init(struct dsc_dce_header *dsc_header)
+{
+	memset(dsc_header, 0, sizeof(*dsc_header));
+
+        dsc_header->bp0 = 0x0A;
+        dsc_header->bp1 = 1;
+        dsc_header->bp4 = 10;
+        dsc_header->bp6 = 128;
+}
+EXPORT_SYMBOL(drm_dsc_dsi_pps_header_init);
+
 /**
  * drm_dsc_dp_rc_buffer_size - get rc buffer size in bytes
  * @rc_buffer_block_size: block size code, according to DPCD offset 62h
