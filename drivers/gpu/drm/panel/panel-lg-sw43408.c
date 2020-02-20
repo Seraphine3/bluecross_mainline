@@ -345,7 +345,7 @@ static int lg_panel_prepare(struct drm_panel *panel)
 	msleep(135);
 
 	/* Set DCS_COMPRESSION_MODE */
-	err = mipi_dsi_dcs_write(pinfo->link, MIPI_DSI_DCS_COMPRESSION_MODE, (u8[]){ 0x11 }, 0);
+	err = mipi_dsi_dcs_write(pinfo->link, MIPI_DSI_COMPRESSION_MODE, (u8[]){ 0x11 }, 0);
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev,
 				"failed to set compression mode: %d\n", err);
@@ -391,7 +391,7 @@ static int lg_panel_enable(struct drm_panel *panel)
 
 	ret = backlight_enable(pinfo->backlight);
 	if (ret) {
-		DRM_DEV_ERROR(panel->drm->dev,
+		DRM_DEV_ERROR(panel->dev,
 				"Failed to enable backlight %d\n", ret);
 		return ret;
 	}
@@ -401,24 +401,26 @@ static int lg_panel_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int lg_panel_get_modes(struct drm_panel *panel)
+static int lg_panel_get_modes(struct drm_panel *panel,
+			      struct drm_connector *connector)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 	const struct drm_display_mode *m = pinfo->desc->display_mode;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, m);
+pr_err("In sw43408 panel_get_modes\n");
+	mode = drm_mode_duplicate(connector->dev, m);
 	if (!mode) {
-		DRM_DEV_ERROR(panel->drm->dev, "failed to add mode %ux%u@%u\n",
+		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%u@%u\n",
 				m->hdisplay, m->vdisplay, m->vrefresh);
 		return -ENOMEM;
 	}
 
-	panel->connector->display_info.width_mm = pinfo->desc->width_mm;
-	panel->connector->display_info.height_mm = pinfo->desc->height_mm;
+	connector->display_info.width_mm = pinfo->desc->width_mm;
+	connector->display_info.height_mm = pinfo->desc->height_mm;
 
 	drm_mode_set_name(mode);
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(connector, mode);
 
 	return 1;
 }
