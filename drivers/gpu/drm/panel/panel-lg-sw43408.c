@@ -20,6 +20,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
+#include <drm/drm_dsc.h>
 
 #include <video/mipi_display.h>
 
@@ -399,6 +400,7 @@ poweroff:
 static int lg_panel_enable(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
+	struct drm_dsi_dsc_infoframe pps;
 	int ret;
 
 	if (pinfo->enabled)
@@ -409,6 +411,22 @@ pr_err("In sw43408 panel_enable\n");
 		DRM_DEV_ERROR(panel->dev,
 				"Failed to enable backlight %d\n", ret);
 		return ret;
+	}
+
+	if (panel->dsc) {
+		/* this panel uses DSC so send the pps */
+		drm_dsc_dsi_pps_header_init(&pps.dsc_header);
+		drm_dsc_compute_rc_parameters(panel->dsc);
+		drm_dsc_pps_payload_pack(&pps.pps_payload, panel->dsc);
+		pr_err("VK: in %s doing pps write now\n", __func__);
+		ret = mipi_dsi_dcs_write(pinfo->link,
+					 MIPI_DSI_PICTURE_PARAMETER_SET,
+					 &pps, 135);
+		if (ret < 0) {
+			DRM_DEV_ERROR(panel->dev,
+				      "failed to set pps: %d\n", ret);
+			return ret;
+		}
 	}
 
 	pinfo->enabled = true;
