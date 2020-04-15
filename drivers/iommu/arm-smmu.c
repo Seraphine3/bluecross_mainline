@@ -242,12 +242,13 @@ static int __arm_smmu_alloc_cb(struct arm_smmu_device *smmu, int start,
 			       struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 	unsigned long *map = smmu->context_map;
 	int end = smmu->num_context_banks;
 	int idx;
 	int i;
 
-	for_each_cfg_sme(fwspec, i, idx) {
+	for_each_cfg_sme(cfg, fwspec, i, idx) {
 		if (smmu->s2crs[idx].pinned)
 			return smmu->s2crs[idx].cbndx;
 	}
