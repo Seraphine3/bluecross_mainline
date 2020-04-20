@@ -254,6 +254,61 @@
 		function = "gpio";
 		bias-pull-up;
 	};
+
+	ts_int_active: ts-int-active {
+		mux {
+			pins = "gpio31";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio31";
+			drive-strength = <16>;
+			bias-pull-down;
+			input-enable;
+		};
+	};
+
+	ts_reset_active: ts-reset-active {
+		mux {
+			pins = "gpio32";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio32";
+			drive-strength = <16>;
+			output-high;
+		};
+	};
+
+	ts_reset_suspend: ts-reset-suspend {
+		mux {
+			pins = "gpio32";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio32";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	ts_int_suspend: ts-int-suspend {
+		mux {
+			pins = "gpio31";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio31";
+			drive-strength = <2>;
+			bias-pull-down;
+			input-enable;
+		};
+	};
 };
 
 &uart6 {
@@ -339,6 +394,51 @@
 	};
 };
 
+&gpi_dma1 {
+	status = "okay";
+};
+
+&i2c14 {
+	status = "ok";
+	clock-frequency = <1000000>;
+
+	dmas =  <&gpi_dma1 0 6 3 64 0>,
+		<&gpi_dma1 1 6 3 64 0>;
+	dma-names = "tx", "rx";
+
+	/* Novatek device tree node */
+	novatek@62 {
+		compatible = "novatek,NVT-ts";
+		reg = <0x62>;
+		status = "ok";
+
+		vddio-supply = <&vreg_l14a_1p88>;
+		lab-supply = <&lab>;
+		ibb-supply = <&ibb>;
+		novatek,vddio-reg-name = "vddio";
+		novatek,lab-reg-name = "lab";
+		novatek,ibb-reg-name = "ibb";
+
+		novatek,reset-tddi = <&tlmm 6 0x00>;
+		novatek,reset-gpio = <&tlmm 32 0x00>;
+		novatek,irq-gpio = <&tlmm 31 0x2001>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		novatek,config-array-size = <2>;
+		novatek,cfg_0 {
+			novatek,tp-vendor = <0x46>;
+			novatek,hw-version = <0x1>;
+			novatek,fw-name = "novatek_nt36672_e10_hw01.fw";
+		};
+		novatek,cfg_1 {
+			novatek,tp-vendor = <0x46>;
+			novatek,hw-version = <0x2>;
+			novatek,fw-name = "novatek_nt36672_e10_hw02.fw";
+		};
+	};
+};
+
 &dsi0 {
 	status = "okay";
 	vdda-supply = <&vdda_mipi_dsi0_1p2>;
@@ -398,4 +498,12 @@
 	qcom,enabled-strings = <0 1>;
 	qcom,cabc;
 	qcom,switching-freq = <600>;
+};
+
+&lab {
+	regulator-always-on;
+};
+
+&ibb {
+	regulator-always-on;
 };
