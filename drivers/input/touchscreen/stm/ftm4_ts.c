@@ -2252,7 +2252,7 @@ static struct i2c_driver fts_i2c_driver = {
 	.probe = fts_probe,
 	.remove = fts_remove,
 	.shutdown = fts_shutdown,
-#if (!defined(CONFIG_FB))
+#if 0 // (!defined(CONFIG_FB))
 	.suspend = fts_suspend,
 	.resume = fts_resume,
 #endif

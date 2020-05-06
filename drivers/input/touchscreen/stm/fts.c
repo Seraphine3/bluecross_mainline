@@ -1492,6 +1492,7 @@ static void touchsim_work(struct work_struct *work)
 	struct fts_ts_info *info  = container_of(touchsim,
 						struct fts_ts_info,
 						touchsim);
+
 	/* prevent CPU from entering deep sleep */
 	cpu_latency_qos_update_request(&info->pm_qos_req, 100);
 
@@ -2470,7 +2471,6 @@ static bool fts_enter_pointer_event_handler(struct fts_ts_info *info, unsigned
 	unsigned int touch_condition = 1, tool = MT_TOOL_FINGER;
 	int x, y, z, major, minor, distance;
 	u8 touchType;
-
 	if (!info->resume_bit)
 		goto no_report;
 
@@ -2547,8 +2547,8 @@ static bool fts_enter_pointer_event_handler(struct fts_ts_info *info, unsigned
 	input_report_key(info->input_dev, BTN_TOUCH, touch_condition);
 	input_mt_report_slot_state(info->input_dev, tool, 1);
 
-	/* pr_info("%s : TouchID = %d,Touchcount = %d\n", __func__,
-	  *	touchId,touchcount); */
+printk("%s : TouchID = %d,Touchcondition = %d\n", __func__,
+	 touchId,touch_condition);
 
 	input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
 	input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
@@ -3186,6 +3186,7 @@ static irqreturn_t fts_interrupt_handler(int irq, void *handle)
 	const unsigned char EVENTS_REMAINING_MASK = 0x1F;
 	unsigned char events_remaining = 0;
 	unsigned char *evt_data;
+printk("SS: %s\n", __func__);
 
 	/* It is possible that interrupts were disabled while the handler is
 	 * executing, before acquiring the mutex. If so, simply return.
@@ -4407,7 +4408,7 @@ static int fts_probe(struct spi_device *client)
 
 	pr_info("SET Event Handler:\n");
 
-	info->wakesrc = wakeup_source_create("fts_tp");
+	info->wakesrc = wakeup_source_register(info->dev, "fts_tp");
 	info->event_wq = alloc_workqueue("fts-event-queue", WQ_UNBOUND |
 					 WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!info->event_wq) {
@@ -4603,6 +4604,7 @@ static int fts_probe(struct spi_device *client)
 			   msecs_to_jiffies(EXP_FN_WORK_DELAY_MS));
 #endif
 
+fts_interrupt_install(info);
 	info->touchsim.wq = alloc_workqueue("fts-heatmap_test-queue",
 					WQ_UNBOUND | WQ_HIGHPRI |
 					WQ_CPU_INTENSIVE, 1);
@@ -4634,7 +4636,7 @@ ProbeErrorExit_5:
 
 ProbeErrorExit_4:
 	/* destroy_workqueue(info->fwu_workqueue); */
-	wakeup_source_destroy(info->wakesrc);
+	wakeup_source_unregister(info->wakesrc);
 
 	fts_enable_reg(info, false);
 
@@ -4691,7 +4693,7 @@ static int fts_remove(struct spi_device *client)
 
 	/* Remove the work thread */
 	destroy_workqueue(info->event_wq);
-	wakeup_source_destroy(info->wakesrc);
+	wakeup_source_unregister(info->wakesrc);
 
 	if(info->touchsim.wq)
 		destroy_workqueue(info->touchsim.wq);
