@@ -330,6 +330,12 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		vreg_l19a: ldo19 {
+			regulator-min-microvolt = <2856000>;
+			regulator-max-microvolt = <3104000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
 		vreg_l20a_2p95: ldo20 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2968000>;
@@ -478,6 +484,45 @@
 		pins = "gpio126";
 		function = "gpio";
 		bias-pull-up;
+	};
+
+	ts_int_active: ts-int-active {
+		mux {
+			pins = "gpio122";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio122";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
+	ts_reset_active: ts-reset-active {
+		mux {
+			pins = "gpio99";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio99";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
+	ts_int_suspend: ts-int-suspend {
+		mux {
+			pins = "gpio122";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio122";
+			drive-strength = <2>;
+			bias-disable;
+		};
 	};
 };
 
@@ -670,6 +715,43 @@
 		};
 	};
 };
+
+&gpi_dma0 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "ok";
+	clock-frequency = <1000000>;
+
+	dmas = <&gpi_dma0 0 2 3 64 0>,
+		<&gpi_dma0 1 2 3 64 0>;
+	dma-names = "tx", "rx";
+
+	/* Touchscreen device tree node */
+	st_fts@49 {
+		status = "ok";
+		compatible = "st,fts";
+		reg = <0x49>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <125 IRQ_TYPE_LEVEL_LOW>;
+		vdd-supply = <&vreg_l14a_1p88>; /* 1.8V */
+		avdd-supply = <&vreg_l19a>; /* 3.3V */
+
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend>;
+
+		st,irq-gpio = <&tlmm 125 0>;
+		st,reset-gpio = <&tlmm 99 0>;
+		st,switch_gpio = <&tlmm 136 0>;
+		st,max-coords = <1079 2159>;
+		st,regulator_dvdd = "vdd";
+		st,regulator_avdd = "avdd";
+		/* todo  st,firmware_name = "ftm4_fw.ftb"; */
+	};
+};
+
 
 &dsi0_phy {
 	status = "okay";
