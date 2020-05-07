@@ -84,6 +84,8 @@ struct panel_info {
 	struct pinctrl_state *active;
 	struct pinctrl_state *suspend;
 
+	struct notifier_block nb;
+
 	bool prepared;
 	bool enabled;
 	bool first_enable;
@@ -93,7 +95,6 @@ static inline struct panel_info *to_panel_info(struct drm_panel *panel)
 {
 	return container_of(panel, struct panel_info, base);
 }
-
 
 /*
  * Need to reset gpios and regulators once in the beginning,
@@ -416,6 +417,65 @@ pr_err("In sw43408 panel_enable\n");
 	return 0;
 }
 
+static int panel_lab_regulator_event(struct notifier_block *nb,
+				unsigned long event, void *data)
+{
+	struct panel_info *pinfo =
+				container_of(nb, struct panel_info, nb);
+	int ret;
+pr_err("In sw43408 panel_lab_regulator_event\n");
+
+	if (event & REGULATOR_EVENT_OVER_CURRENT) {
+		/* Try to reinitialise the panel, since lab regulator would
+		 * have been disabled by the short circuit.
+		 * if it throws an error, then the panel won't recover;
+		 * shutdown the panel.
+		 */
+		ret = lg_panel_prepare(&pinfo->base);
+
+		if (ret) {
+			dev_err(pinfo->base.dev,
+				"Failed to re-enable lab regulator: %d\n",
+				ret);
+			lg_panel_unprepare(&pinfo->base);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int panel_register_lab_notify(struct panel_info *pinfo)
+{
+	int i, ret = 0;
+	struct regulator *lab_reg = NULL;
+pr_err("In sw43408 panel_register_lab_notify\n");
+
+	pinfo->nb.notifier_call = panel_lab_regulator_event;
+
+	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
+		if (strcmp(pinfo->supplies[i].supply, "lab") == 0) {
+			lab_reg = pinfo->supplies[i].consumer;
+			break;
+		}
+	}
+
+	if (lab_reg != NULL) {
+		ret = devm_regulator_register_notifier(lab_reg, &pinfo->nb);
+
+		if (ret)
+			dev_err(pinfo->base.dev,
+				"Failed to register lab notifier: %d\n", ret);
+	} else {
+		dev_err(pinfo->base.dev,
+			"Invalid name while trying to register lab notifier: %d\n", ret);
+
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int lg_panel_get_modes(struct drm_panel *panel,
 			      struct drm_connector *connector)
 {
@@ -632,6 +692,10 @@ pr_err("In sw43408 panel add\n");
 
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(pinfo->supplies),
 				      pinfo->supplies);
+	if (ret < 0)
+		return ret;
+
+	ret = panel_register_lab_notify(pinfo);
 	if (ret < 0)
 		return ret;
 
