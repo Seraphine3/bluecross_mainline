@@ -1474,6 +1474,7 @@ static void touchsim_refresh_coordinates(struct fts_touchsim *touchsim)
 static void touchsim_report_contact_event(struct input_dev *dev, int slot_id,
 						int x, int y, int z)
 {
+printk("SS: %s, slot_id: %d, x: %d, y: %d, z: %d\n", __func__,slot_id, x, y, z);
 	/* report the cordinates to the input subsystem */
 	input_mt_slot(dev, slot_id);
 	input_report_key(dev, BTN_TOUCH, true);
@@ -2471,6 +2472,7 @@ static bool fts_enter_pointer_event_handler(struct fts_ts_info *info, unsigned
 	unsigned int touch_condition = 1, tool = MT_TOOL_FINGER;
 	int x, y, z, major, minor, distance;
 	u8 touchType;
+printk("SS: %s, event: %c\n", __func__, *event);
 	if (!info->resume_bit)
 		goto no_report;
 
