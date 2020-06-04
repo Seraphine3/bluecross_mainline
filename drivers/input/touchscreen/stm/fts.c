@@ -1474,7 +1474,6 @@ static void touchsim_refresh_coordinates(struct fts_touchsim *touchsim)
 static void touchsim_report_contact_event(struct input_dev *dev, int slot_id,
 						int x, int y, int z)
 {
-printk("SS: %s, slot_id: %d, x: %d, y: %d, z: %d\n", __func__,slot_id, x, y, z);
 	/* report the cordinates to the input subsystem */
 	input_mt_slot(dev, slot_id);
 	input_report_key(dev, BTN_TOUCH, true);
@@ -1493,6 +1492,7 @@ static void touchsim_work(struct work_struct *work)
 	struct fts_ts_info *info  = container_of(touchsim,
 						struct fts_ts_info,
 						touchsim);
+
 	/* prevent CPU from entering deep sleep */
 	cpu_latency_qos_update_request(&info->pm_qos_req, 100);
 
@@ -2471,7 +2471,6 @@ static bool fts_enter_pointer_event_handler(struct fts_ts_info *info, unsigned
 	unsigned int touch_condition = 1, tool = MT_TOOL_FINGER;
 	int x, y, z, major, minor, distance;
 	u8 touchType;
-printk("SS: %s, event: %c\n", __func__, *event);
 	if (!info->resume_bit)
 		goto no_report;
 
@@ -4409,7 +4408,7 @@ static int fts_probe(struct spi_device *client)
 
 	pr_info("SET Event Handler:\n");
 
-	info->wakesrc = wakeup_source_create("fts_tp");
+	info->wakesrc = wakeup_source_register(info->dev, "fts_tp");
 	info->event_wq = alloc_workqueue("fts-event-queue", WQ_UNBOUND |
 					 WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!info->event_wq) {
@@ -4605,6 +4604,7 @@ static int fts_probe(struct spi_device *client)
 			   msecs_to_jiffies(EXP_FN_WORK_DELAY_MS));
 #endif
 
+fts_interrupt_install(info);
 	info->touchsim.wq = alloc_workqueue("fts-heatmap_test-queue",
 					WQ_UNBOUND | WQ_HIGHPRI |
 					WQ_CPU_INTENSIVE, 1);
@@ -4636,7 +4636,7 @@ ProbeErrorExit_5:
 
 ProbeErrorExit_4:
 	/* destroy_workqueue(info->fwu_workqueue); */
-	wakeup_source_destroy(info->wakesrc);
+	wakeup_source_unregister(info->wakesrc);
 
 	fts_enable_reg(info, false);
 
@@ -4693,7 +4693,7 @@ static int fts_remove(struct spi_device *client)
 
 	/* Remove the work thread */
 	destroy_workqueue(info->event_wq);
-	wakeup_source_destroy(info->wakesrc);
+	wakeup_source_unregister(info->wakesrc);
 
 	if(info->touchsim.wq)
 		destroy_workqueue(info->touchsim.wq);
