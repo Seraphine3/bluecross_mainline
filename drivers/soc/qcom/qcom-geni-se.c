@@ -284,7 +284,7 @@ static int geni_se_select_gpi_mode(struct geni_se *se)
 	unsigned int gpi_event_en = 0;
 	unsigned int common_geni_m_irq_en = 0;
 	unsigned int common_geni_s_irq_en = 0;
-
+printk("SS: %s: %0x\n", __func__, se->base);
 	common_geni_m_irq_en = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 	common_geni_s_irq_en = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
 	common_geni_m_irq_en &=

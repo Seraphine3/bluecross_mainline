@@ -898,6 +898,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	gi2c->se.wrapper = dev_get_drvdata(dev->parent);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	gi2c->se.base = devm_ioremap_resource(dev, res);
+printk("SS: %s: se_base: %0x\n", __func__, gi2c->se.base);
 	if (IS_ERR(gi2c->se.base))
 		return PTR_ERR(gi2c->se.base);
 
@@ -1020,12 +1021,13 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
 
 	ret = geni_se_resources_on(&gi2c->se);
+printk("SS: %s: geni_se_resource_on returned: %d\n", __func__, ret);
 	if (ret)
 		return ret;
 	if (gi2c->se_mode == UNINITIALIZED) {
 		int proto = geni_se_read_proto(&gi2c->se);
 		u32 se_mode;
-
+printk("SS: %s: proto: %d\n", __func__, proto);
 		if (unlikely(proto != GENI_SE_I2C)) {
 			dev_err(gi2c->se.dev, "Invalid proto %d\n", proto);
 			geni_se_resources_off(&gi2c->se);
@@ -1034,6 +1036,7 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 
 		se_mode = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) &
 				FIFO_IF_DISABLE;
+printk("SS: %s: se_mode: %d\n", __func__, se_mode);
 		if (se_mode) {
 			gi2c->se_mode = GSI_ONLY;
 			geni_se_select_mode(&gi2c->se, GENI_GPI_DMA);
