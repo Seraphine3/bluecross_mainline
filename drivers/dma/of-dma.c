@@ -33,10 +33,13 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 {
 	struct of_dma *ofdma;
 
-	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
+	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers) {
+printk("SS: %s: ofdma name: %s\n", __func__, ofdma->of_node->name);
 		if (ofdma->of_node == dma_spec->np)
 			return ofdma;
+	}
 
+printk("SS: %s: can't find DMA controller %pOF\n", __func__, dma_spec->np);
 	pr_debug("%s: can't find DMA controller %pOF\n", __func__,
 		 dma_spec->np);
 
@@ -247,18 +250,18 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 		pr_err("%s: not enough information provided\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
-
+printk("SS: %s: name is ok %s\n", __func__, name);
 	/* Silently fail if there is not even the "dmas" property */
 	if (!of_find_property(np, "dmas", NULL))
 		return ERR_PTR(-ENODEV);
-
+printk("SS: %s: dmas property found\n", __func__);
 	count = of_property_count_strings(np, "dma-names");
 	if (count < 0) {
 		pr_err("%s: dma-names property of node '%pOF' missing or empty\n",
 			__func__, np);
 		return ERR_PTR(-ENODEV);
 	}
-
+printk("SS: %s: dma-names count: %d\n", __func__, count);
 	/*
 	 * approximate an average distribution across multiple
 	 * entries with the same name
@@ -269,13 +272,14 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 					 (i + start) % count,
 					 &dma_spec))
 			continue;
-
+printk("SS: %s:matching %d channel\n", __func__, i);
 		mutex_lock(&of_dma_lock);
 		ofdma = of_dma_find_controller(&dma_spec);
 
 		if (ofdma) {
 			chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
 		} else {
+printk("SS: %s: ofdma not found\n", __func__);
 			ret_no_channel = -EPROBE_DEFER;
 			chan = NULL;
 		}

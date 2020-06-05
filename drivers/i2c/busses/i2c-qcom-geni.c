@@ -552,7 +552,7 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		gi2c->tx_c = dma_request_slave_channel(gi2c->se.dev, "tx");
 		if (!gi2c->tx_c) {
 			dev_err(gi2c->se.dev,
-				    "tx dma req slv chan ret :%d\n", ret);
+				    "tx dma req slv chan ret :%d\n", PTR_ERR(gi2c->tx_c));
 			ret = -EIO;
 			goto geni_i2c_gsi_xfer_out;
 		}
@@ -828,17 +828,18 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 		pm_runtime_set_suspended(gi2c->se.dev);
 		return ret;
 	}
-
+printk("SS: %s: \n", __func__);
 	qcom_geni_i2c_conf(gi2c);
 
 	if (gi2c->se_mode == GSI_ONLY) {
+printk("SS: %s: calling geni_i2c_gsi_xfer\n", __func__);
 		ret = geni_i2c_gsi_xfer(adap, msgs, num);
 		goto geni_i2c_txn_ret;
 	} else {
 		/* Don't set shared flag in non-GSI mode */
 		gi2c->is_shared = false;
 	}
-
+printk("SS: %s: geni_i2c_gsi_xfer NOT Called\n", __func__);
 	for (i = 0; i < num; i++) {
 		u32 m_param = i < (num - 1) ? STOP_STRETCH : 0;
 
