@@ -56,7 +56,7 @@ CONFIG_SWP_EMULATION=y
 CONFIG_CP15_BARRIER_EMULATION=y
 CONFIG_SETEND_EMULATION=y
 CONFIG_RANDOMIZE_BASE=y
-CONFIG_CMDLINE="earlycon console=ttyMSM0,115200n8 firmware_class.path=/vendor/firmware/ androidboot.hardware=pixel3_mainline init=/init androidboot.boot_devices=soc@0/1d84000.ufshc androidboot.serialno=89EX09405 printk.devkmsg=on androidboot.super_partition=system_b fw_devlink=permissive deferred_probe_timeout=30"
+CONFIG_CMDLINE="earlycon console=ttyMSM0,115200n8 firmware_class.path=/vendor/firmware androidboot.hardware=pixel3_mainline init=/init androidboot.boot_devices=soc@0/1d84000.ufshc androidboot.serialno=89EX09405 printk.devkmsg=on androidboot.super_partition=system_b fw_devlink=permissive deferred_probe_timeout=30"
 CONFIG_CMDLINE_FORCE=y
 # CONFIG_DMI is not set
 CONFIG_PM_WAKELOCKS=y
