@@ -1455,9 +1455,16 @@ static void gpi_process_imed_data_event(struct gpii_chan *gpii_chan,
 		GPII_ERR(gpii, gpii_chan->chid, "Event: %08x %08x %08x %08x\n",
 			 gpi_ere->dword[0], gpi_ere->dword[1],
 			 gpi_ere->dword[2], gpi_ere->dword[3]);
+		pr_err("VK: %s Event TRE: %08x %08x %08x %08x\n", __func__,
+			 gpi_ere->dword[0], gpi_ere->dword[1],
+			 gpi_ere->dword[2], gpi_ere->dword[3]);
 		gpi_tre = tre;
 		GPII_ERR(gpii, gpii_chan->chid,
 			 "Pending TRE: %08x %08x %08x %08x\n",
+			 gpi_tre->dword[0], gpi_tre->dword[1],
+			 gpi_tre->dword[2], gpi_tre->dword[3]);
+
+		pr_err("VK %s Pending TRE: %08x %08x %08x %08x\n", __func__,
 			 gpi_tre->dword[0], gpi_tre->dword[1],
 			 gpi_tre->dword[2], gpi_tre->dword[3]);
 		gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_EOT_DESC_MISMATCH,
@@ -1547,6 +1554,9 @@ static void gpi_process_xfer_compl_event(struct gpii_chan *gpii_chan,
 		GPII_ERR(gpii, gpii_chan->chid, "Event: %08x %08x %08x %08x\n",
 			 gpi_ere->dword[0], gpi_ere->dword[1],
 			 gpi_ere->dword[2], gpi_ere->dword[3]);
+		pr_err("VK: %s Event TRE: %08x %08x %08x %08x\n", __func__,
+			 gpi_ere->dword[0], gpi_ere->dword[1],
+			 gpi_ere->dword[2], gpi_ere->dword[3]);
 		gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_EOT_DESC_MISMATCH,
 				      __LINE__);
 		return;
@@ -1622,6 +1632,11 @@ static void gpi_process_events(struct gpii *gpii)
 			GPII_VERB(gpii, GPI_DBG_COMMON,
 				  "chid:%u type:0x%x %08x %08x %08x %08x\n",
 				  chid, type,
+				  gpi_event->gpi_ere.dword[0],
+				  gpi_event->gpi_ere.dword[1],
+				  gpi_event->gpi_ere.dword[2],
+				  gpi_event->gpi_ere.dword[3]);
+			pr_err("VK: %s %08x %08x %08x %08x\n", __func__,
 				  gpi_event->gpi_ere.dword[0],
 				  gpi_event->gpi_ere.dword[1],
 				  gpi_event->gpi_ere.dword[2],
@@ -2291,6 +2306,7 @@ struct dma_async_tx_descriptor *gpi_prep_slave_sg(struct dma_chan *chan,
 	void *tre, *wp = NULL;
 	const gfp_t gfp = GFP_ATOMIC;
 	struct gpi_desc *gpi_desc;
+	struct msm_gpi_tre *msm_tre;
 	gpii->ieob_set = false;
 
 	GPII_VERB(gpii, gpii_chan->chid, "enter\n");
@@ -2327,6 +2343,9 @@ struct dma_async_tx_descriptor *gpi_prep_slave_sg(struct dma_chan *chan,
 	/* copy each tre into transfer ring */
 	for_each_sg(sgl, sg, sg_len, i) {
 		tre = sg_virt(sg);
+		msm_tre = tre;
+		pr_err("VK: TRE:%d: %x:%x:%x:%x\n", i, msm_tre->dword[0], msm_tre->dword[1],
+				msm_tre->dword[2], msm_tre->dword[3]);
 
 		/* Check if last tre has ieob set */
 		if (i == sg_len - 1) {
