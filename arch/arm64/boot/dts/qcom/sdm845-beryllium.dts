@@ -449,17 +449,13 @@
 	};
 
 	panel@0 {
-		compatible = "tianma,nt36672a";
+		compatible = "tianma,fhd-video";
 		reg = <0>;
 		vddi0-supply = <&vreg_l14a_1p88>;
 		vddpos-supply = <&lab>;
 		vddneg-supply = <&ibb>;
 
-		reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
-
-//		pinctrl-names = "default", "suspend";
-//		pinctrl-0 = <&sde_dsi_active>;
-//		pinctrl-1 = <&sde_dsi_suspend>;
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
