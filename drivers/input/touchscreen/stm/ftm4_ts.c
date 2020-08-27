@@ -88,7 +88,7 @@ void fts_release_all_finger(struct fts_ts_info *info);
 static int fts_suspend(struct i2c_client *client, pm_message_t mesg);
 static int fts_resume(struct i2c_client *client);
 
-#if defined(CONFIG_FB)
+#if defined(__SS_UNUSED__)
 static int touch_fb_notifier_callback(struct notifier_block *self,
 		unsigned long event, void *data);
 #endif
@@ -809,10 +809,10 @@ static unsigned char fts_event_handler_type_b(struct fts_ts_info *info,
 			info->fts_power_state );
 #endif
 
-	if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER)
-		EventID = data[EventNum * FTS_EVENT_SIZE] & 0xFF;
-	else
-		EventID = data[EventNum * FTS_EVENT_SIZE] & 0x0F;
+		if (info->fts_power_state == FTS_POWER_STATE_LOWPOWER)
+			EventID = data[EventNum * FTS_EVENT_SIZE] & 0xFF;
+		else
+			EventID = data[EventNum * FTS_EVENT_SIZE] & 0x0F;
 
 		if ((EventID >= 3) && (EventID <= 5)) {
 			LastLeftEvent = 0;
@@ -1710,7 +1710,7 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 		__func__, info->irq);
 #endif
 
-#if defined(CONFIG_FB)
+#if defined(__SS_UNUSED__)
 	info->fb_notif.notifier_call = touch_fb_notifier_callback;
 	retval = fb_register_client(&info->fb_notif);
 #endif
@@ -1759,7 +1759,7 @@ static int fts_remove(struct i2c_client *client)
 
 	tsp_debug_info(&info->client->dev, "FTS removed\n");
 
-#if defined(CONFIG_FB)
+#if defined(__SS_UNUSED__)
 	if (fb_unregister_client(&info->fb_notif))
 		tsp_debug_err(&info->client->dev,
 			"%s: Error occured while unregistering fb_notifier.\n", __func__);
@@ -2196,7 +2196,7 @@ static int fts_resume(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(CONFIG_FB)
+#if defined(__SS_UNUSED__)
 static int touch_fb_notifier_callback(struct notifier_block *self,
 		unsigned long event, void *data)
 {
@@ -2252,7 +2252,7 @@ static struct i2c_driver fts_i2c_driver = {
 	.probe = fts_probe,
 	.remove = fts_remove,
 	.shutdown = fts_shutdown,
-#if 0 // (!defined(CONFIG_FB))
+#if 0 // (!defined(__SS_UNUSED__))
 	.suspend = fts_suspend,
 	.resume = fts_resume,
 #endif
