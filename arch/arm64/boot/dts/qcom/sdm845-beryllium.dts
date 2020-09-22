@@ -283,8 +283,8 @@
 &i2c5 {
 	status="okay";
 
-	dmas = <&gpi_dma0 0 5 3 64 0>,
-	       <&gpi_dma0 1 5 3 64 0>;
+	dmas = <&gpi_dma0 0 5 QCOM_GPI_I2C>,
+	       <&gpi_dma0 1 5 QCOM_GPI_I2C>;
 	dma-names = "tx", "rx";
 
        /*smart PA*/
@@ -543,8 +543,8 @@
 &i2c14 {
         status="okay";
 
-	dmas =  <&gpi_dma1 0 6 3 64 0>,
-		<&gpi_dma1 1 6 3 64 0>;
+	dmas =  <&gpi_dma1 0 6 QCOM_GPI_I2C>,
+		<&gpi_dma1 1 6 QCOM_GPI_I2C>;
 	dma-names = "tx", "rx";
 
         touchscreen: novatek@62 {
