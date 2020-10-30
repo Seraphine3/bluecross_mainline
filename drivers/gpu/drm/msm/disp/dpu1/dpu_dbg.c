@@ -263,7 +263,7 @@ int dpu_dbg_reg_register_base(const char *name, void __iomem *base,
 	/* Initialize list to make sure check for null list will be valid */
 	INIT_LIST_HEAD(&reg_base->sub_range_list);
 
-	pr_debug("%s base: %pK max_offset 0x%zX\n", reg_base->name,
+	pr_info("%s base: %pK max_offset 0x%zX\n", reg_base->name,
 			reg_base->base, reg_base->max_offset);
 
 	list_add(&reg_base->reg_base_head, &dbg_base->reg_base_list);
@@ -310,7 +310,7 @@ void dpu_dbg_reg_register_dump_range(const char *base_name,
 	range->xin_id = xin_id;
 	list_add_tail(&range->head, &reg_base->sub_range_list);
 
-	pr_debug("base %s, range %s, start 0x%X, end 0x%X\n",
+	pr_info("base_name %s, range_name %s, start 0x%X, end 0x%X\n",
 			base_name, range->range_name,
 			range->offset.start, range->offset.end);
 }

@@ -18,8 +18,8 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_of.h>
 #include <drm/drm_vblank.h>
-#include "dpu_dbg.h"
 
+#include "dpu_dbg.h"
 #include "msm_drv.h"
 #include "msm_debugfs.h"
 #include "msm_fence.h"
@@ -166,6 +166,24 @@ void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name,
 				const char *dbgname)
 {
 	return _msm_ioremap(pdev, name, dbgname, true);
+}
+
+unsigned long msm_iomap_size(struct platform_device *pdev, const char *name)
+{
+	struct resource *res;
+
+	if (name)
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	else
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	if (!res) {
+		dev_dbg(&pdev->dev, "failed to get memory resource: %s\n",
+				name);
+		return 0;
+	}
+
+	return resource_size(res);
 }
 
 void msm_writel(u32 data, void __iomem *addr)
@@ -552,6 +570,8 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto err_msm_uninit;
+
+	dpu_dbg_register_drm_dev(ddev);
 
 	drm_mode_config_reset(ddev);
 
@@ -1293,9 +1313,13 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	int ret;
 
 	if (get_mdp_ver(pdev)) {
-		ret = add_display_components(pdev, &match);
+		ret = add_display_components(&pdev->dev, &match);
 		if (ret)
 			return ret;
+
+		ret = dpu_dbg_init(&pdev->dev);
+		if (ret)
+			pr_err("dpu_dbg_init failed ret = %d\n", ret);
 	}
 
 	ret = add_gpu_components(&pdev->dev, &match);

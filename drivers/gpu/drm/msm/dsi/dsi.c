@@ -119,6 +119,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	priv->dsi[msm_dsi->id] = msm_dsi;
+	msm_dsi_dbg_register_base(msm_dsi->host);
 
 	return 0;
 }

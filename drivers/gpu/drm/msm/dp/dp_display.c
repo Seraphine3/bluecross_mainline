@@ -239,6 +239,8 @@ static int dp_display_bind(struct device *dev, struct device *master,
 	if (rc)
 		DRM_ERROR("Audio registration Dp failed\n");
 
+	dp_catalog_register_dbg_base(dp->catalog);
+
 end:
 	return rc;
 }

@@ -124,6 +124,7 @@ void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
 	struct msm_dsi_phy_clk_request *clk_req,
 	bool is_dual_dsi);
 void msm_dsi_host_destroy(struct mipi_dsi_host *host);
+void msm_dsi_dbg_register_base(struct mipi_dsi_host *host);
 int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 					struct drm_device *dev);
 int msm_dsi_host_init(struct msm_dsi *msm_dsi);

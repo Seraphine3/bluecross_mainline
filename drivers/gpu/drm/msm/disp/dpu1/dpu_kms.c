@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018, 2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -28,6 +28,7 @@
 #include "dpu_encoder.h"
 #include "dpu_plane.h"
 #include "dpu_crtc.h"
+#include "dpu_dbg.h"
 
 #define CREATE_TRACE_POINTS
 #include "dpu_trace.h"
@@ -913,7 +914,14 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		dpu_kms->mmio = NULL;
 		goto error;
 	}
-	DRM_DEBUG("mapped dpu address space @%pK\n", dpu_kms->mmio);
+
+	dpu_kms->mmio_len = msm_iomap_size(dpu_kms->pdev, "mdp");
+
+	DRM_DEBUG("mapped dpu address space @%pK len = 0x%lx\n",
+			dpu_kms->mmio, dpu_kms->mmio_len);
+
+	dpu_dbg_reg_register_base(DPU_DBG_NAME,
+			dpu_kms->mmio, dpu_kms->mmio_len);
 
 	dpu_kms->vbif[VBIF_RT] = msm_ioremap(dpu_kms->pdev, "vbif", "vbif");
 	if (IS_ERR(dpu_kms->vbif[VBIF_RT])) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2020 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -27,6 +27,8 @@
 #include "dsi_cfg.h"
 #include "msm_kms.h"
 #include "msm_gem.h"
+#include "dpu_dbg.h"
+#include "msm_drv.h"
 
 #define DSI_RESET_TOGGLE_DELAY_MS 20
 
@@ -2170,6 +2172,17 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 fail:
 	return ret;
+}
+
+void msm_dsi_dbg_register_base(struct mipi_dsi_host *host)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	char dbg_name[32];
+
+	snprintf(dbg_name, 32, "dsi%d_ctrl",
+			msm_host->id);
+	dpu_dbg_reg_register_base(dbg_name, msm_host->ctrl_base,
+			msm_iomap_size(msm_host->pdev, "dsi_ctrl"));
 }
 
 void msm_dsi_host_destroy(struct mipi_dsi_host *host)

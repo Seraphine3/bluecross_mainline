@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #include "dpu_hwio.h"
@@ -7,7 +7,7 @@
 #include "dpu_hw_lm.h"
 #include "dpu_hw_dspp.h"
 #include "dpu_kms.h"
-
+#include "dpu_dbg.h"
 
 /* DSPP_PCC */
 #define PCC_EN BIT(0)
@@ -113,6 +113,9 @@ struct dpu_hw_dspp *dpu_hw_dspp_init(enum dpu_dspp idx,
 	_setup_dspp_ops(c, c->cap->features);
 
 	dpu_hw_blk_init(&c->base, DPU_HW_BLK_DSPP, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name, c->hw.blk_off,
+			c->hw.blk_off + c->hw.length, c->hw.xin_id);
 
 	return c;
 }

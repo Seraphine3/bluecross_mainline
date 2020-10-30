@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #include "dpu_hwio.h"
@@ -7,6 +7,7 @@
 #include "dpu_hw_lm.h"
 #include "dpu_hw_sspp.h"
 #include "dpu_kms.h"
+#include "dpu_dbg.h"
 
 #define DPU_FETCH_CONFIG_RESET_VALUE   0x00000087
 
@@ -736,6 +737,11 @@ struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
 	_setup_layer_ops(hw_pipe, hw_pipe->cap->features);
 
 	dpu_hw_blk_init(&hw_pipe->base, DPU_HW_BLK_SSPP, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name,
+			hw_pipe->hw.blk_off,
+			hw_pipe->hw.blk_off + hw_pipe->hw.length,
+			hw_pipe->hw.xin_id);
 
 	return hw_pipe;
 }

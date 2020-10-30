@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/iopoll.h>
@@ -10,6 +10,7 @@
 #include "dpu_hw_pingpong.h"
 #include "dpu_kms.h"
 #include "dpu_trace.h"
+#include "dpu_dbg.h"
 
 #define PP_TEAR_CHECK_EN                0x000
 #define PP_SYNC_CONFIG_VSYNC            0x004
@@ -317,6 +318,9 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 	_setup_pingpong_ops(c, c->caps->features);
 
 	dpu_hw_blk_init(&c->base, DPU_HW_BLK_PINGPONG, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name, c->hw.blk_off,
+			c->hw.blk_off + c->hw.length, c->hw.xin_id);
 
 	return c;
 }

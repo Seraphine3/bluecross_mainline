@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_top.h"
 #include "dpu_kms.h"
+#include "dpu_dbg.h"
 
 #define SSPP_SPARE                        0x28
 
@@ -325,6 +326,10 @@ struct dpu_hw_mdp *dpu_hw_mdptop_init(enum dpu_mdp idx,
 	_setup_mdp_ops(&mdp->ops, mdp->caps->features);
 
 	dpu_hw_blk_init(&mdp->base, DPU_HW_BLK_TOP, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name,
+			mdp->hw.blk_off, mdp->hw.blk_off + mdp->hw.length,
+			mdp->hw.xin_id);
 
 	return mdp;
 }

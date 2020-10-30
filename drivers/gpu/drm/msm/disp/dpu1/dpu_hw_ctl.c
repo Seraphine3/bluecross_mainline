@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -7,6 +7,7 @@
 #include "dpu_hw_ctl.h"
 #include "dpu_kms.h"
 #include "dpu_trace.h"
+#include "dpu_dbg.h"
 
 #define   CTL_LAYER(lm)                 \
 	(((lm) == LM_5) ? (0x024) : (((lm) - LM_0) * 0x004))
@@ -621,6 +622,9 @@ struct dpu_hw_ctl *dpu_hw_ctl_init(enum dpu_ctl idx,
 	c->mixer_hw_caps = m->mixer;
 
 	dpu_hw_blk_init(&c->base, DPU_HW_BLK_CTL, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name, c->hw.blk_off,
+			c->hw.blk_off + c->hw.length, c->hw.xin_id);
 
 	return c;
 }

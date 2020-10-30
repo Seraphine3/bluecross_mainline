@@ -62,6 +62,18 @@ struct dp_catalog_private {
 	u8 aux_lut_cfg_index[PHY_AUX_CFG_MAX];
 };
 
+void dp_catalog_register_dbg_base(struct dp_catalog *dp_catalog)
+{
+	char dbg_name[32];
+	struct dp_catalog_private *catalog = container_of(dp_catalog,
+			struct dp_catalog_private, dp_catalog);
+
+	snprintf(dbg_name, 32, "dp_ctrl");
+
+	dpu_dbg_reg_register_base(dbg_name, catalog->io->dp_controller.base,
+			catalog->io->dp_controller.len);
+}
+
 static inline u32 dp_read_aux(struct dp_catalog_private *catalog, u32 offset)
 {
 	offset += MSM_DP_CONTROLLER_AUX_OFFSET;
