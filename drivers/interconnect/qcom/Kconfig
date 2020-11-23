@@ -48,7 +48,7 @@ config INTERCONNECT_QCOM_RPMH
 config INTERCONNECT_QCOM_SC7180
 	tristate "Qualcomm SC7180 interconnect driver"
 	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || (QCOM_RPMH && COMPILE_TEST)
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
@@ -58,7 +58,7 @@ config INTERCONNECT_QCOM_SC7180
 config INTERCONNECT_QCOM_SDM845
 	tristate "Qualcomm SDM845 interconnect driver"
 	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || (QCOM_RPMH && COMPILE_TEST)
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
@@ -68,7 +68,7 @@ config INTERCONNECT_QCOM_SDM845
 config INTERCONNECT_QCOM_SM8150
 	tristate "Qualcomm SM8150 interconnect driver"
 	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || (QCOM_RPMH && COMPILE_TEST)
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
@@ -78,7 +78,7 @@ config INTERCONNECT_QCOM_SM8150
 config INTERCONNECT_QCOM_SM8250
 	tristate "Qualcomm SM8250 interconnect driver"
 	depends on INTERCONNECT_QCOM
-	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || COMPILE_TEST
+	depends on (QCOM_RPMH && QCOM_COMMAND_DB && OF) || (QCOM_RPMH && COMPILE_TEST)
 	select INTERCONNECT_QCOM_RPMH
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
