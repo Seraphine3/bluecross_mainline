@@ -32,31 +32,6 @@
 		regulator-always-on;
 	};
 
-	lt9611_1v8: lt9611-vdd18-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "LT9611_1V8";
-
-		vin-supply = <&vdc_5v>;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-
-		gpio = <&tlmm 89 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
-	lt9611_3v3: lt9611-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "LT9611_3V3";
-
-		vin-supply = <&vdc_3v3>;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-
-		// TODO: make it possible to drive same GPIO from two clients
-		// gpio = <&tlmm 89 GPIO_ACTIVE_HIGH>;
-		// enable-active-high;
-	};
-
 	pcie0_1p05v: pcie-0-1p05v-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "PCIE0_1.05V";
@@ -124,19 +99,6 @@
 			linux,default-trigger = "bluetooth-power";
 			default-state = "off";
 		};
-	};
-
-	v5p0_hdmiout: v5p0-hdmiout-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "V5P0_HDMIOUT";
-
-		vin-supply = <&vdc_5v>;
-		regulator-min-microvolt = <500000>;
-		regulator-max-microvolt = <500000>;
-
-		// TODO: make it possible to drive same GPIO from two clients
-		// gpio = <&tlmm 89 GPIO_ACTIVE_HIGH>;
-		// enable-active-high;
 	};
 
 	vbat: vbat-regulator {
