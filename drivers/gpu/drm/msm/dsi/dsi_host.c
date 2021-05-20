@@ -1067,7 +1067,6 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 			slice_per_intf = DIV_ROUND_UP(hdisplay, dsc->drm.slice_width);
 			bytes_in_slice = DIV_ROUND_UP(dsc->drm.slice_width * dsc->drm.bits_per_pixel, 8);
 			dsc->drm.slice_chunk_size = bytes_in_slice;
-			pr_err("VK: bytes_in_slice is %x:%x\n", bytes_in_slice, dsc->drm.slice_chunk_size);
 			total_bytes_per_intf = dsc->bytes_in_slice * slice_per_intf;
 			dsc->pkt_per_line = slice_per_intf / dsc->slice_per_pkt;
 
@@ -1890,15 +1889,9 @@ static int dsi_populate_dsc_params(struct msm_display_dsc_config *dsc)
 	}
 
 	dsc->drm.initial_offset = 6144;
-	dsc->drm.final_offset = 4336;
 	dsc->drm.initial_xmit_delay = 512;
-	dsc->drm.initial_dec_delay = 526;
 	dsc->drm.initial_scale_value = 32;
-	dsc->drm.scale_decrement_interval = 7;
-	dsc->drm.scale_increment_interval = 388;
 	dsc->drm.first_line_bpg_offset = 12;
-	dsc->drm.nfl_bpg_offset = 1639;
-	dsc->drm.slice_bpg_offset = 1628;
 	dsc->drm.line_buf_depth = dsc->drm.bits_per_component + 1;
 
 	/* bpc 8 */

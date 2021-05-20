@@ -76,60 +76,37 @@ static void dpu_hw_dsc_config(struct dpu_hw_dsc *hw_dsc,
 	data |= dsc->drm.slice_height;
 	DPU_REG_WRITE(c, DSC_SLICE, data);
 
-	pr_err("VK: check: dsc->drm.slice_chunk_size: %x\n", dsc->drm.slice_chunk_size);
 	data = DIV_ROUND_UP(dsc->drm.slice_width * dsc->drm.bits_per_pixel, 8) << 16;
 
 	DPU_REG_WRITE(c, DSC_CHUNK_SIZE, data);
 
 	data = dsc->drm.initial_dec_delay << 16;
 	data |= dsc->drm.initial_xmit_delay;
-
-	pr_err("VK: DSC_DELAY, data is:%x, expected:%x\n", data, 0x020E0200);
-	data = 0x020E0200; // XXX
 	DPU_REG_WRITE(c, DSC_DELAY, data);
 
 	data = dsc->drm.initial_scale_value;
-	pr_err("VK: DSC_SCALE_INITIAL data is:%x, expected:%x\n", data, 0x00000020);
-	data = 0x00000020; // XXX
 	DPU_REG_WRITE(c, DSC_SCALE_INITIAL, data);
 
 	data = dsc->drm.scale_decrement_interval;
-	pr_err("VK: DSC_SCALE_DEC_INTERVAL data is:%x, expected:%x\n", data, 0x00000007);
-	data = 0x00000007; // XXX
 	DPU_REG_WRITE(c, DSC_SCALE_DEC_INTERVAL, data);
 
-	data = dsc->drm.scale_increment_interval;
-	pr_err("VK: dsc->drm.scale_increment_interval: %x\n", dsc->drm.scale_increment_interval);
-	pr_err("VK: DSC_SCALE_INC_INTERVAL data is:%x, expected:%x\n", data, 0x00000184);
-	data = 0x00000184; // XXX
+	data = 0x00000184; /* only this value works */
 	DPU_REG_WRITE(c, DSC_SCALE_INC_INTERVAL, data);
 
 	data = dsc->drm.first_line_bpg_offset;
-	pr_err("VK: DSC_FIRST_LINE_BPG_OFFSET data is:%x, expected:%x\n", data, 0x0000000C);
-	data = 0x0000000C; // XXX
 	DPU_REG_WRITE(c, DSC_FIRST_LINE_BPG_OFFSET, data);
 
 	data = dsc->drm.nfl_bpg_offset << 16;
 	data |= dsc->drm.slice_bpg_offset;
-
-	pr_err("VK: DSC_BPG_OFFSET data is:%x, expected:%x\n", data, 0x0667065c);
-	data = 0x0667065c; // XXX
 	DPU_REG_WRITE(c, DSC_BPG_OFFSET, data);
 
 	data = dsc->drm.initial_offset << 16;
 	data |= dsc->drm.final_offset;
-
-	pr_err("VK: DSC_DSC_OFFSET data is:%x, expected:%x\n", data, 0x180010F0);
-	data = 0x180010F0; // XXX
 	DPU_REG_WRITE(c, DSC_DSC_OFFSET, data);
 
-	pr_err("VK: check threasH %d, max: %d, min: %d\n", dsc->det_thresh_flatness, dsc->drm.flatness_max_qp, dsc->drm.flatness_min_qp);
 	data = dsc->det_thresh_flatness << 10;
 	data |= dsc->drm.flatness_max_qp << 5;
 	data |= dsc->drm.flatness_min_qp;
-
-	pr_err("VK: DSC_FLATNESS data is:%x, expected:%x\n", data, 0x00001d83);
-	data = 0x00001d83;
 	DPU_REG_WRITE(c, DSC_FLATNESS, data);
 
 	data = dsc->drm.rc_model_size;
