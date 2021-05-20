@@ -8,6 +8,7 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_mdss.h"
 #include "dpu_hw_dsc.h"
+#include "dpu_dbg.h"
 
 #define DSC_COMMON_MODE	                0x000
 #define DSC_ENC                         0X004
@@ -232,6 +233,9 @@ struct dpu_hw_dsc *dpu_hw_dsc_init(enum dpu_dsc idx, void __iomem *addr,
 	_setup_dsc_ops(&c->ops, c->caps->features);
 
 	dpu_hw_blk_init(&c->base, DPU_HW_BLK_DSC, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name, c->hw.blk_off,
+			c->hw.blk_off + c->hw.length, c->hw.xin_id);
 
 	return c;
 }

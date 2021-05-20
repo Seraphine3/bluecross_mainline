@@ -5,6 +5,7 @@
 
 #include "msm_kms.h"
 #include "dsi.h"
+#include "dpu_dbg.h"
 
 #define DSI_CLOCK_MASTER	DSI_0
 #define DSI_CLOCK_SLAVE		DSI_1
@@ -463,7 +464,9 @@ static void dsi_mgr_bridge_enable(struct drm_bridge *bridge)
 			pr_err("%s: enable panel %d failed, %d\n", __func__, id,
 									ret);
 		}
+		DPU_DBG_DUMP("dpu", "DSI panel is enabled now");
 	}
+	DPU_DBG_DUMP("dpu", "dsi0_ctrl");
 }
 
 static void dsi_mgr_bridge_disable(struct drm_bridge *bridge)
