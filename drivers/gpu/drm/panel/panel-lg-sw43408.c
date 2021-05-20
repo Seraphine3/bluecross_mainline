@@ -212,7 +212,6 @@ static int lg_panel_power_off(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 	int i, ret = 0;
-pr_err("In sw43408 panel_power_off\n");
 	gpiod_set_value(pinfo->reset_gpio, 0);
 
         ret = panel_set_pinctrl_state(pinfo, false);
@@ -241,7 +240,6 @@ pr_err("In sw43408 panel_power_off\n");
 
 static int lg_panel_unprepare(struct drm_panel *panel)
 {
-pr_err("In sw43408 panel_unprepare\n");
 /* HACK : Currently, after a suspend, the resume doesn't enable screen, so
  *        don't disable the panel until we figure out why that is.
  */
@@ -285,7 +283,6 @@ return 0;
 static int lg_panel_power_on(struct panel_info *pinfo)
 {
 	int ret, i;
-pr_err("In sw43408 panel_power_on\n");
 	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
 		ret = regulator_set_load(pinfo->supplies[i].consumer,
 					regulator_enable_loads[i]);
@@ -307,12 +304,14 @@ pr_err("In sw43408 panel_power_on\n");
 	 * Reset sequence of LG sw43408 panel requires the panel to be
 	 * out of reset for 9ms, followed by being held in reset
 	 * for 1ms and then out again
+	 * For now dont set this sequence as it causes panel to not come
+	 * back
 	 */
-	gpiod_set_value(pinfo->reset_gpio, 1);
-	usleep_range(9000, 10000);
-	gpiod_set_value(pinfo->reset_gpio, 0);
-	usleep_range(1000, 2000);
-	gpiod_set_value(pinfo->reset_gpio, 1);
+	//gpiod_set_value(pinfo->reset_gpio, 1);
+	//usleep_range(9000, 10000);
+	//gpiod_set_value(pinfo->reset_gpio, 0);
+	//usleep_range(1000, 2000);
+	//gpiod_set_value(pinfo->reset_gpio, 1);
 	usleep_range(9000, 10000);
 
 	return 0;
@@ -322,7 +321,6 @@ static int lg_panel_prepare(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 	int err;
-pr_err("In sw43408 panel_prepare\n");
 
 	if (unlikely(pinfo->first_enable)) {
 		pinfo->first_enable = false;
@@ -405,20 +403,11 @@ static int lg_panel_enable(struct drm_panel *panel)
 
 	if (pinfo->enabled)
 		return 0;
-pr_err("In sw43408 panel_enable\n");
-	ret = backlight_enable(pinfo->backlight);
-	if (ret) {
-		DRM_DEV_ERROR(panel->dev,
-				"Failed to enable backlight %d\n", ret);
-		return ret;
-	}
-
 	if (panel->dsc) {
 		/* this panel uses DSC so send the pps */
 		drm_dsc_dsi_pps_header_init(&pps.dsc_header);
 		drm_dsc_compute_rc_parameters(panel->dsc);
 		drm_dsc_pps_payload_pack(&pps.pps_payload, panel->dsc);
-		pr_err("VK: in %s doing pps write now\n", __func__);
 		ret = mipi_dsi_dcs_write(pinfo->link,
 					 MIPI_DSI_PICTURE_PARAMETER_SET,
 					 &pps, 135);
@@ -428,6 +417,13 @@ pr_err("In sw43408 panel_enable\n");
 			return ret;
 		}
 	}
+	ret = backlight_enable(pinfo->backlight);
+	if (ret) {
+		DRM_DEV_ERROR(panel->dev,
+				"Failed to enable backlight %d\n", ret);
+		return ret;
+	}
+
 
 	pinfo->enabled = true;
 
@@ -440,11 +436,8 @@ static int lg_panel_get_modes(struct drm_panel *panel,
 	struct panel_info *pinfo = to_panel_info(panel);
 	const struct drm_display_mode *m = pinfo->desc->display_mode;
 	struct drm_display_mode *mode;
-pr_err("In sw43408 panel_get_modes\n");
 	mode = drm_mode_duplicate(connector->dev, m);
 	if (!mode) {
-		//DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%u@%u\n",
-		//		m->hdisplay, m->vdisplay, m->vrefresh);
 		DRM_DEV_ERROR(panel->dev, "failed to add mode %ux%u\n",
 				m->hdisplay, m->vdisplay);
 		return -ENOMEM;
@@ -472,12 +465,8 @@ static int lg_panel_backlight_update_status(struct backlight_device *bl)
 	else
 		pinfo->brightness = bl->props.brightness;
 
-pr_err("sw43408: panel_backlight_update_status: setting brightness to: %d\n", pinfo->brightness);
-
 	ret = mipi_dsi_dcs_set_display_brightness(pinfo->link,
 					pinfo->brightness);
-pr_err("sw43408: mipi_dsi_dcs_set_display_brightness returned : %d\n", ret);
-
 	return ret;
 }
 
@@ -488,7 +477,6 @@ static int lg_panel_backlight_get_brightness(struct backlight_device *bl)
 	u16 brightness = 0;
 
 	ret = mipi_dsi_dcs_get_display_brightness(pinfo->link, &brightness);
-pr_err("sw43408: panel_backlight_get_brightness: current brightness is: %d, ret: %d\n", brightness, ret);
 	if (ret < 0)
 		return ret;
 
@@ -506,10 +494,9 @@ static int lg_panel_backlight_init(struct panel_info *pinfo)
 	struct backlight_device	*bl;
 	struct device *dev = &pinfo->link->dev;
 
-pr_err("sw43408: panel_backlight_init\n");
 	props.type = BACKLIGHT_RAW;
 
-	// Set the max_brightness to 255 to begin with
+	/* Set the max_brightness to 255 to begin with */
 	props.max_brightness = pinfo->max_brightness = 255;
 	props.brightness = pinfo->max_brightness;
 	pinfo->brightness = pinfo->max_brightness;
@@ -577,7 +564,6 @@ static const struct drm_display_mode lg_panel_default_mode = {
 	.vsync_start	= 2160 + 20,
 	.vsync_end	= 2160 + 20 + 4,
 	.vtotal		= 2160 + 20 + 4 + 20,
-	//.vrefresh	= 60,
 
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
@@ -643,7 +629,6 @@ static int panel_add(struct panel_info *pinfo)
 {
 	struct device *dev = &pinfo->link->dev;
 	int i, ret;
-pr_err("In sw43408 panel add\n");
 
 	pinfo->init_delay_us = 5000;
 
@@ -672,10 +657,8 @@ pr_err("In sw43408 panel add\n");
 
 	drm_panel_init(&pinfo->base, dev, &panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
-pr_err("In sw43408 panel add: after drm_panel_init\n");
 
 	drm_panel_add(&pinfo->base);
-pr_err("In sw43408 panel add: drm_panel_add returned %d\n", ret);
 	return ret;
 }
 
@@ -703,14 +686,12 @@ static int panel_probe(struct mipi_dsi_device *dsi)
 
 	pinfo->link = dsi;
 	mipi_dsi_set_drvdata(dsi, pinfo);
-pr_err("In sw43408 panel probe\n");
 
 	err = panel_add(pinfo);
 	if (err < 0)
 		return err;
 
 	err = mipi_dsi_attach(dsi);
-pr_err("In sw43408 panel probe: mipi_dsi_attach returned: %d\n", err);
 	return err;
 }
 
@@ -733,7 +714,6 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 		DRM_DEV_ERROR(&dsi->dev, "failed to detach from DSI host: %d\n",
 				err);
 
-//	drm_panel_detach(&pinfo->base);
 	panel_del(pinfo);
 
 	return 0;
@@ -742,7 +722,6 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 static void panel_shutdown(struct mipi_dsi_device *dsi)
 {
 	struct panel_info *pinfo = mipi_dsi_get_drvdata(dsi);
-pr_err("sw43408: panel_shutdown\n");
 	lg_panel_disable(&pinfo->base);
 	lg_panel_unprepare(&pinfo->base);
 }
