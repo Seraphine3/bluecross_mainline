@@ -160,8 +160,8 @@ static u32 _dpu_dbg_get_dump_range(struct dpu_dbg_reg_offset *range_node,
 	return length;
 }
 
-static int _dpu_dump_reg_range_cmp(void *priv, struct list_head *a,
-		struct list_head *b)
+static int _dpu_dump_reg_range_cmp(void *priv, const struct list_head *a,
+		const struct list_head *b)
 {
 	struct dpu_dbg_reg_range *ar, *br;
 
@@ -192,7 +192,7 @@ static void _dpu_dump_reg_by_ranges(struct dpu_dbg_base *dbg_base,
 		return;
 	}
 
-	dump_stack();
+//	dump_stack();
 	dev_info(dbg_base->dev, "%s:=========%s DUMP=========\n", __func__,
 			dbg->name);
 
