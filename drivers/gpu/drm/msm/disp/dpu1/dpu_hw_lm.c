@@ -7,6 +7,7 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_mdss.h"
+#include "dpu_dbg.h"
 
 #define LM_OP_MODE                        0x00
 #define LM_OUT_SIZE                       0x04
@@ -185,6 +186,9 @@ struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
 	_setup_mixer_ops(m, &c->ops, c->cap->features);
 
 	dpu_hw_blk_init(&c->base, DPU_HW_BLK_LM, idx, &dpu_hw_ops);
+
+	dpu_dbg_reg_register_dump_range(DPU_DBG_NAME, cfg->name, c->hw.blk_off,
+			c->hw.blk_off + c->hw.length, c->hw.xin_id);
 
 	return c;
 }

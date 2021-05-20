@@ -94,10 +94,10 @@ static void _dpu_dump_work(struct kthread_work *work)
 	/* reset the enable_reg_dump to default before every dump */
 	dpu_dbg.enable_reg_dump = DEFAULT_REGDUMP;
 
-	_dpu_dump_array(&dpu_dbg, dpu_dbg.req_dump_blks,
-		ARRAY_SIZE(dpu_dbg.req_dump_blks),
-		dpu_dbg.work_panic, "evtlog_workitem",
-		dpu_dbg.dump_all);
+	//_dpu_dump_array(&dpu_dbg, dpu_dbg.req_dump_blks,
+	//	ARRAY_SIZE(dpu_dbg.req_dump_blks),
+	//	dpu_dbg.work_panic, "evtlog_workitem",
+	//	dpu_dbg.dump_all);
 
 	dpu_devcoredump_capture_state();
 
@@ -109,6 +109,20 @@ static void _dpu_dump_work(struct kthread_work *work)
 	}
 #endif
 }
+
+static int dpu_debugfs_set(void *data, u64 value)
+{
+	if (value == 42) {
+		pr_err("VK: ***** DUMPING ****** \n");
+		_dpu_dump_array(&dpu_dbg, dpu_dbg.req_dump_blks,
+			ARRAY_SIZE(dpu_dbg.req_dump_blks),
+			false, "42isans", true);
+	} else
+		pr_err("VK: wrong answer to life\n");
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(dpu_debugfs_ops, NULL, dpu_debugfs_set, "%llu\n");
 
 void dpu_dbg_dump(enum dpu_dbg_dump_context dump_mode, const char *name, ...)
 {
@@ -197,6 +211,8 @@ int dpu_dbg_init(struct device *dev)
 
 	pr_info("dump:%d\n", dpu_dbg.enable_reg_dump);
 
+	pr_err("VK: Creating debugfs\n");
+	debugfs_create_file("DPU-DUMP", 0600, NULL, NULL, &dpu_debugfs_ops);
 	return 0;
 }
 

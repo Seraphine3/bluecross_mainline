@@ -192,6 +192,7 @@ static void _dpu_dump_reg_by_ranges(struct dpu_dbg_base *dbg_base,
 		return;
 	}
 
+	dump_stack();
 	dev_info(dbg_base->dev, "%s:=========%s DUMP=========\n", __func__,
 			dbg->name);
 
