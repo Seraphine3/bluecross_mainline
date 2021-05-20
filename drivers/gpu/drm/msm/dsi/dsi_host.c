@@ -956,6 +956,7 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 	u32 va_end = va_start + mode->vdisplay;
 	u32 hdisplay = mode->hdisplay;
 	u32 wc;
+	u32 data;
 
 	DBG("");
 
@@ -974,11 +975,23 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 		hdisplay /= 2;
 	}
 
-	pr_err("VK: msm_host->mode_flags: %lx\n", msm_host->mode_flags);
+	if (msm_host->dsc) {
+		struct msm_display_dsc_config *dsc = msm_host->dsc;
+
+		/* update dsc params with timing params */
+		dsc->drm.pic_width = mode->hdisplay;
+		dsc->drm.pic_height = mode->vdisplay;
+
+		/* Divide the display by 3 but keep back/font porch and
+		 * pulse width same
+		 */
+		h_total -= hdisplay;
+		hdisplay /= 3;
+		h_total += hdisplay;
+		ha_end = ha_start + hdisplay;
+	}
+
 	if (msm_host->mode_flags & MIPI_DSI_MODE_VIDEO) {
-
-		pr_err("VKA: in %s doing MIPI_DSI_MODE_VIDEO\n", __func__);
-
 		if (msm_host->dsc) {
 			struct msm_display_dsc_config *dsc = msm_host->dsc;
 			u32 reg, intf_width, slice_per_intf, width;
@@ -996,8 +1009,7 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 			if (dsc->slice_per_pkt > slice_per_intf)
 				dsc->slice_per_pkt = 1;
 
-			dsc->bytes_in_slice = DIV_ROUND_UP(dsc->drm.slice_width *
-						      dsi_get_bpp(msm_host->format), 8);
+			dsc->bytes_in_slice = DIV_ROUND_UP(dsc->drm.slice_width * 8, 8);
 			total_bytes_per_intf = dsc->bytes_in_slice * slice_per_intf;
 
 			dsc->eol_byte_num = total_bytes_per_intf % 3;
@@ -1016,7 +1028,7 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 			 * 3 pkt is not supported
 			 * above translates to ffs() - 1
 			 */
-			reg = (ffs(dsc->pkt_per_line) - 1) << 6;
+			reg |= (ffs(dsc->pkt_per_line) - 1) << 6;
 
 			dsc->eol_byte_num = total_bytes_per_intf % 3;
 			reg |= dsc->eol_byte_num << 4;
@@ -1044,25 +1056,23 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 			DSI_ACTIVE_VSYNC_VPOS_START(vs_start) |
 			DSI_ACTIVE_VSYNC_VPOS_END(vs_end));
 	} else {		/* command mode */
-		pr_err("VKA: in %s in cmd mode\n", __func__);
-
 		if (msm_host->dsc) {
 			struct msm_display_dsc_config *dsc = msm_host->dsc;
 			u32 reg, reg_ctrl, reg_ctrl2;
 			u32 slice_per_intf, bytes_in_slice, total_bytes_per_intf;
 
-			reg_ctrl = dsi_read(msm_host,
-					REG_DSI_COMMAND_COMPRESSION_MODE_CTRL);
-			reg_ctrl2 = dsi_read(
-					msm_host, REG_DSI_COMMAND_COMPRESSION_MODE_CTRL2);
+			reg_ctrl = dsi_read(msm_host, REG_DSI_COMMAND_COMPRESSION_MODE_CTRL);
+			reg_ctrl2 = dsi_read(msm_host, REG_DSI_COMMAND_COMPRESSION_MODE_CTRL2);
 
 			slice_per_intf = DIV_ROUND_UP(hdisplay, dsc->drm.slice_width);
-			bytes_in_slice = DIV_ROUND_UP(dsc->drm.slice_width *
-						      dsi_get_bpp(msm_host->format), 8);
+			bytes_in_slice = DIV_ROUND_UP(dsc->drm.slice_width * dsc->drm.bits_per_pixel, 8);
+			dsc->drm.slice_chunk_size = bytes_in_slice;
+			pr_err("VK: bytes_in_slice is %x:%x\n", bytes_in_slice, dsc->drm.slice_chunk_size);
 			total_bytes_per_intf = dsc->bytes_in_slice * slice_per_intf;
 			dsc->pkt_per_line = slice_per_intf / dsc->slice_per_pkt;
+
 			reg = 0x39 << 8;
-			reg = (ffs(dsc->pkt_per_line) - 1) << 6;
+			reg |= ffs(dsc->pkt_per_line) << 6;
 
 			dsc->eol_byte_num = total_bytes_per_intf % 3;
 			reg |= dsc->eol_byte_num << 4;
@@ -1071,23 +1081,27 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 			reg_ctrl |= reg;
 			reg_ctrl2 |= bytes_in_slice;
 
-			dsi_write(msm_host, REG_DSI_COMMAND_COMPRESSION_MODE_CTRL, reg_ctrl);
+			dsi_write(msm_host, REG_DSI_COMMAND_COMPRESSION_MODE_CTRL, reg);
 			dsi_write(msm_host, REG_DSI_COMMAND_COMPRESSION_MODE_CTRL2, reg_ctrl2);
 		}
 
 		/* image data and 1 byte write_memory_start cmd */
-		wc = hdisplay * dsi_get_bpp(msm_host->format) / 8 + 1;
+		if (!msm_host->dsc)
+			wc = hdisplay * dsi_get_bpp(msm_host->format) / 8 + 1;
+		else
+			wc = mode->hdisplay / 2 + 1;
 
-		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_CTRL,
-			DSI_CMD_MDP_STREAM0_CTRL_WORD_COUNT(wc) |
+		data = 	DSI_CMD_MDP_STREAM0_CTRL_WORD_COUNT(wc) |
 			DSI_CMD_MDP_STREAM0_CTRL_VIRTUAL_CHANNEL(
 					msm_host->channel) |
 			DSI_CMD_MDP_STREAM0_CTRL_DATA_TYPE(
-					MIPI_DSI_DCS_LONG_WRITE));
+					MIPI_DSI_DCS_LONG_WRITE);
 
-		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_TOTAL,
-			DSI_CMD_MDP_STREAM0_TOTAL_H_TOTAL(hdisplay) |
-			DSI_CMD_MDP_STREAM0_TOTAL_V_TOTAL(mode->vdisplay));
+		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_CTRL, data);
+
+		data = DSI_CMD_MDP_STREAM0_TOTAL_H_TOTAL(hdisplay) |
+			DSI_CMD_MDP_STREAM0_TOTAL_V_TOTAL(mode->vdisplay);
+		dsi_write(msm_host, REG_DSI_CMD_MDP_STREAM0_TOTAL, data);
 	}
 }
 
@@ -1876,17 +1890,26 @@ static int dsi_populate_dsc_params(struct msm_display_dsc_config *dsc)
 	}
 
 	dsc->drm.initial_offset = 6144;
+	dsc->drm.final_offset = 4336;
 	dsc->drm.initial_xmit_delay = 512;
+	dsc->drm.initial_dec_delay = 526;
+	dsc->drm.initial_scale_value = 32;
+	dsc->drm.scale_decrement_interval = 7;
+	dsc->drm.scale_increment_interval = 388;
+	dsc->drm.first_line_bpg_offset = 12;
+	dsc->drm.nfl_bpg_offset = 1639;
+	dsc->drm.slice_bpg_offset = 1628;
 	dsc->drm.line_buf_depth = dsc->drm.bits_per_component + 1;
 
 	/* bpc 8 */
 	dsc->drm.flatness_min_qp = 3;
 	dsc->drm.flatness_max_qp = 12;
+	dsc->det_thresh_flatness = 7;
 	dsc->drm.rc_quant_incr_limit0 = 11;
 	dsc->drm.rc_quant_incr_limit1 = 11;
 	dsc->drm.mux_word_size = DSC_MUX_WORD_SIZE_8_10_BPC;
 
-	/* need to call drm_dsc_compute_rc_parameters() so that rest of
+	/* FIXME: need to call drm_dsc_compute_rc_parameters() so that rest of
 	 * params are calculated
 	 */
 
@@ -1907,8 +1930,6 @@ static int dsi_populate_dsc_params(struct msm_display_dsc_config *dsc)
 	default:
 		break;
 	}
-
-	dsc->det_thresh_flatness = 2 << (dsc->drm.bits_per_component - 8);
 
 	return 0;
 }
@@ -2211,6 +2232,7 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	struct platform_device *pdev = msm_host->pdev;
+	struct msm_drm_private *priv;
 	int ret;
 
 	msm_host->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
@@ -2230,6 +2252,9 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 	}
 
 	msm_host->dev = dev;
+	priv = dev->dev_private;
+	priv->dsc = msm_host->dsc;
+
 	ret = cfg_hnd->ops->tx_buf_alloc(msm_host, SZ_4K);
 	if (ret) {
 		pr_err("%s: alloc tx gem obj failed, %d\n", __func__, ret);
@@ -2675,13 +2700,6 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 
 	msm_host->power_on = true;
 	mutex_unlock(&msm_host->dev_mutex);
-
-	if (msm_host->dsc) {
-		struct drm_device *drm = msm_host->dev;
-		struct msm_drm_private *priv = drm->dev_private;
-
-		priv->dsc = msm_host->dsc;
-	}
 
 	return 0;
 
