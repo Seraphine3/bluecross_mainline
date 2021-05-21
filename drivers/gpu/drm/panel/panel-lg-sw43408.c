@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2019 Linaro Ltd
+ * Copyright (C) 2021 Linaro Ltd
  * Author: Sumit Semwal <sumit.semwal@linaro.org>
  */
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -12,7 +11,6 @@
 #include <linux/of_device.h>
 
 #include <linux/gpio/consumer.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
 
 #include <drm/drm_device.h>
@@ -62,7 +60,9 @@ struct panel_desc {
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
 
+	unsigned int num_on_cmds_1;
 	const struct panel_cmd *on_cmds_1;
+	unsigned int num_on_cmds_2;
 	const struct panel_cmd *on_cmds_2;
 };
 
@@ -71,23 +71,13 @@ struct panel_info {
 	struct mipi_dsi_device *link;
 	const struct panel_desc *desc;
 
-	struct backlight_device *backlight;
-	u32 brightness;
-	u32 max_brightness;
-
 	u32 init_delay_us;
 
 	struct regulator_bulk_data supplies[ARRAY_SIZE(regulator_names)];
 
 	struct gpio_desc *reset_gpio;
 
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *active;
-	struct pinctrl_state *suspend;
-
 	bool prepared;
-	bool enabled;
-	bool first_enable;
 };
 
 static inline struct panel_info *to_panel_info(struct drm_panel *panel)
@@ -95,140 +85,33 @@ static inline struct panel_info *to_panel_info(struct drm_panel *panel)
 	return container_of(panel, struct panel_info, base);
 }
 
-
-/*
- * Need to reset gpios and regulators once in the beginning,
- */
-static int panel_reset_at_beginning(struct panel_info * pinfo)
+static int send_mipi_cmds(struct drm_panel *panel, const struct panel_cmd *cmds,
+                              int num)
 {
-	int ret = 0, i;
+        struct panel_info *pinfo = to_panel_info(panel);
+        unsigned int i;
+        int err;
 
-	DRM_DEV_ERROR(pinfo->base.dev,
-					"panel_reset_at_beginning\n");
-	/* enable supplies */
-	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
-		ret = regulator_set_load(pinfo->supplies[i].consumer,
-					regulator_enable_loads[i]);
-		if (ret)
-			return ret;
-	}
+        for (i = 0; i < num; i++) {
+                const struct panel_cmd *cmd = &cmds[i];
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
-	if (ret < 0)
-		return ret;
+                err = mipi_dsi_dcs_write(pinfo->link, cmd->data[0], cmd->data + 1, 1);
 
-	/* Disable supplies */
-	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
-		ret = regulator_set_load(pinfo->supplies[i].consumer,
-				regulator_disable_loads[i]);
-		if (ret) {
-			DRM_DEV_ERROR(pinfo->base.dev,
-				"regulator_set_load failed %d\n", ret);
-			return ret;
-		}
-	}
-
-	ret = regulator_bulk_disable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Reset sequence of LG sw43408 panel requires the panel to be
-	 * out of reset for 9ms, followed by being held in reset
-	 * for 1ms and then out again
-	 */
-	gpiod_set_value(pinfo->reset_gpio, 1);
-	usleep_range(9000, 10000);
-	gpiod_set_value(pinfo->reset_gpio, 0);
-	usleep_range(1000, 2000);
-	gpiod_set_value(pinfo->reset_gpio, 1);
-	usleep_range(9000, 10000);
-
-	return 0;
-}
-
-static int send_mipi_cmds(struct drm_panel *panel, const struct panel_cmd *cmds)
-{
-	struct panel_info *pinfo = to_panel_info(panel);
-	unsigned int i = 0;
-	int err;
-
-	if (!cmds)
-		return -EFAULT;
-
-	for (i = 0; cmds[i].len != 0; i++) {
-		const struct panel_cmd *cmd = &cmds[i];
-
-		if (cmd->len == 2)
-			err = mipi_dsi_dcs_write(pinfo->link,
-						    cmd->data[1], NULL, 0);
-		else
-			err = mipi_dsi_dcs_write(pinfo->link,
-						    cmd->data[1], cmd->data + 2,
-						    cmd->len - 2);
-
-		if (err < 0)
-			return err;
-
+                if (err < 0)
+                        return err;
 		usleep_range((cmd->data[0]) * 1000,
 			    (1 + cmd->data[0]) * 1000);
-	}
 
-	return 0;
-}
+        }
 
-static int panel_set_pinctrl_state(struct panel_info *panel, bool enable)
-{
-	int rc = 0;
-	struct pinctrl_state *state;
-
-	if (enable)
-		state = panel->active;
-	else
-		state = panel->suspend;
-
-	rc = pinctrl_select_state(panel->pinctrl, state);
-	if (rc)
-		pr_err("[%s] failed to set pin state, rc=%d\n", panel->desc->panel_name,
-			rc);
-	return rc;
-}
-
-static int lg_panel_disable(struct drm_panel *panel)
-{
-/* HACK: return 0 for now */
-
-#if 0
-	struct panel_info *pinfo = to_panel_info(panel);
-
-	backlight_disable(pinfo->backlight);
-
-	pinfo->enabled = false;
-#endif
-	return 0;
+        return 0;
 }
 
 static int lg_panel_power_off(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
-	int i, ret = 0;
+	int ret = 0;
 	gpiod_set_value(pinfo->reset_gpio, 0);
-
-        ret = panel_set_pinctrl_state(pinfo, false);
-        if (ret) {
-                pr_err("[%s] failed to set pinctrl, rc=%d\n", pinfo->desc->panel_name, ret);
-		return ret;
-        }
-
-	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
-		ret = regulator_set_load(pinfo->supplies[i].consumer,
-				regulator_disable_loads[i]);
-		if (ret) {
-			DRM_DEV_ERROR(panel->dev,
-				"regulator_set_load failed %d\n", ret);
-			return ret;
-		}
-	}
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
 	if (ret) {
@@ -240,12 +123,6 @@ static int lg_panel_power_off(struct drm_panel *panel)
 
 static int lg_panel_unprepare(struct drm_panel *panel)
 {
-/* HACK : Currently, after a suspend, the resume doesn't enable screen, so
- *        don't disable the panel until we figure out why that is.
- */
-return 0;
-
-#if 0
 	struct panel_info *pinfo = to_panel_info(panel);
 	int ret;
 
@@ -277,7 +154,6 @@ return 0;
 	pinfo->prepared = false;
 
 	return ret;
-#endif
 }
 
 static int lg_panel_power_on(struct panel_info *pinfo)
@@ -294,12 +170,6 @@ static int lg_panel_power_on(struct panel_info *pinfo)
 	if (ret < 0)
 		return ret;
 
-	ret = panel_set_pinctrl_state(pinfo, true);
-	if (ret) {
-		pr_err("[%s] failed to set pinctrl, rc=%d\n", pinfo->desc->panel_name, ret);
-		return ret;
-	}
-
 	/*
 	 * Reset sequence of LG sw43408 panel requires the panel to be
 	 * out of reset for 9ms, followed by being held in reset
@@ -307,29 +177,22 @@ static int lg_panel_power_on(struct panel_info *pinfo)
 	 * For now dont set this sequence as it causes panel to not come
 	 * back
 	 */
-	//gpiod_set_value(pinfo->reset_gpio, 1);
-	//usleep_range(9000, 10000);
-	//gpiod_set_value(pinfo->reset_gpio, 0);
-	//usleep_range(1000, 2000);
-	//gpiod_set_value(pinfo->reset_gpio, 1);
+#if 0
+	gpiod_set_value(pinfo->reset_gpio, 1);
 	usleep_range(9000, 10000);
-
+	gpiod_set_value(pinfo->reset_gpio, 0);
+	usleep_range(1000, 2000);
+	gpiod_set_value(pinfo->reset_gpio, 1);
+#endif
+	usleep_range(9000, 12000);
 	return 0;
 }
 
 static int lg_panel_prepare(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
+	struct drm_dsi_dsc_infoframe pps;
 	int err;
-
-	if (unlikely(pinfo->first_enable)) {
-		pinfo->first_enable = false;
-		err = panel_reset_at_beginning(pinfo);
-		if (err < 0) {
-		pr_err("sw43408 panel_reset_at_beginning failed: %d\n", err);
-			return err;
-		}
-	}
 
 	if (pinfo->prepared)
 		return 0;
@@ -341,7 +204,7 @@ static int lg_panel_prepare(struct drm_panel *panel)
 		goto poweroff;
 
 	/* send first part of init cmds */
-	err = send_mipi_cmds(panel, pinfo->desc->on_cmds_1);
+	err = send_mipi_cmds(panel, pinfo->desc->on_cmds_1, pinfo->desc->num_on_cmds_1);
 
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev,
@@ -368,7 +231,7 @@ static int lg_panel_prepare(struct drm_panel *panel)
 
 
 	/* Send rest of the init cmds */
-	err = send_mipi_cmds(panel, pinfo->desc->on_cmds_2);
+	err = send_mipi_cmds(panel, pinfo->desc->on_cmds_2, pinfo->desc->num_on_cmds_2);
 
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev,
@@ -386,6 +249,21 @@ static int lg_panel_prepare(struct drm_panel *panel)
 	/* 0x32 = 50ms delay */
 	msleep(120);
 
+	if (panel->dsc) {
+		/* this panel uses DSC so send the pps */
+		drm_dsc_dsi_pps_header_init(&pps.dsc_header);
+		drm_dsc_compute_rc_parameters(panel->dsc);
+		drm_dsc_pps_payload_pack(&pps.pps_payload, panel->dsc);
+		err = mipi_dsi_dcs_write(pinfo->link,
+					 MIPI_DSI_PICTURE_PARAMETER_SET,
+					 &pps, 135);
+		if (err < 0) {
+			DRM_DEV_ERROR(panel->dev,
+				      "failed to set pps: %d\n", err);
+			goto poweroff;
+		}
+	}
+
 	pinfo->prepared = true;
 
 	return 0;
@@ -393,41 +271,6 @@ static int lg_panel_prepare(struct drm_panel *panel)
 poweroff:
 	gpiod_set_value(pinfo->reset_gpio, 1);
 	return err;
-}
-
-static int lg_panel_enable(struct drm_panel *panel)
-{
-	struct panel_info *pinfo = to_panel_info(panel);
-	struct drm_dsi_dsc_infoframe pps;
-	int ret;
-
-	if (pinfo->enabled)
-		return 0;
-	if (panel->dsc) {
-		/* this panel uses DSC so send the pps */
-		drm_dsc_dsi_pps_header_init(&pps.dsc_header);
-		drm_dsc_compute_rc_parameters(panel->dsc);
-		drm_dsc_pps_payload_pack(&pps.pps_payload, panel->dsc);
-		ret = mipi_dsi_dcs_write(pinfo->link,
-					 MIPI_DSI_PICTURE_PARAMETER_SET,
-					 &pps, 135);
-		if (ret < 0) {
-			DRM_DEV_ERROR(panel->dev,
-				      "failed to set pps: %d\n", ret);
-			return ret;
-		}
-	}
-	ret = backlight_enable(pinfo->backlight);
-	if (ret) {
-		DRM_DEV_ERROR(panel->dev,
-				"Failed to enable backlight %d\n", ret);
-		return ret;
-	}
-
-
-	pinfo->enabled = true;
-
-	return 0;
 }
 
 static int lg_panel_get_modes(struct drm_panel *panel,
@@ -452,71 +295,9 @@ static int lg_panel_get_modes(struct drm_panel *panel,
 	return 1;
 }
 
-static int lg_panel_backlight_update_status(struct backlight_device *bl)
-{
-	struct panel_info *pinfo = bl_get_data(bl);
-	int ret = 0;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
-	    bl->props.state & BL_CORE_FBBLANK) {
-		pinfo->brightness = 0;
-	}
-	else
-		pinfo->brightness = bl->props.brightness;
-
-	ret = mipi_dsi_dcs_set_display_brightness(pinfo->link,
-					pinfo->brightness);
-	return ret;
-}
-
-static int lg_panel_backlight_get_brightness(struct backlight_device *bl)
-{
-	struct panel_info *pinfo = bl_get_data(bl);
-	int ret = 0;
-	u16 brightness = 0;
-
-	ret = mipi_dsi_dcs_get_display_brightness(pinfo->link, &brightness);
-	if (ret < 0)
-		return ret;
-
-	return brightness & 0xff;
-}
-
-const struct backlight_ops lg_panel_backlight_ops = {
-	.update_status = lg_panel_backlight_update_status,
-	.get_brightness = lg_panel_backlight_get_brightness,
-};
-
-static int lg_panel_backlight_init(struct panel_info *pinfo)
-{
-	struct backlight_properties props = {};
-	struct backlight_device	*bl;
-	struct device *dev = &pinfo->link->dev;
-
-	props.type = BACKLIGHT_RAW;
-
-	/* Set the max_brightness to 255 to begin with */
-	props.max_brightness = pinfo->max_brightness = 255;
-	props.brightness = pinfo->max_brightness;
-	pinfo->brightness = pinfo->max_brightness;
-	bl = devm_backlight_device_register(dev, "lg-sw43408", dev, pinfo,
-					     &lg_panel_backlight_ops, &props);
-	if (IS_ERR(bl)) {
-		DRM_ERROR("failed to register backlight device\n");
-		return PTR_ERR(bl);
-	}
-	pinfo->backlight = bl;
-
-	return 0;
-}
-
-
 static const struct drm_panel_funcs panel_funcs = {
-	.disable = lg_panel_disable,
 	.unprepare = lg_panel_unprepare,
 	.prepare = lg_panel_prepare,
-	.enable = lg_panel_enable,
 	.get_modes = lg_panel_get_modes,
 };
 
@@ -532,20 +313,22 @@ static const struct panel_cmd lg_sw43408_on_cmds_1[] = {
 
 static const struct panel_cmd lg_sw43408_on_cmds_2[] = {
 	_INIT_CMD(0x00, 0xB0, 0xAC),
-	_INIT_CMD(0x00, 0xCD,
-			0x00, 0x00, 0x00, 0x19, 0x19, 0x19, 0x19, 0x19,
-			0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19,
-			0x16, 0x16),
-	_INIT_CMD(0x00, 0xCB, 0x80, 0x5C, 0x07, 0x03, 0x28),
-	_INIT_CMD(0x00, 0xC0, 0x02, 0x02, 0x0F),
-	_INIT_CMD(0x00, 0xE5, 0x00, 0x3A, 0x00, 0x3A, 0x00, 0x0E, 0x10),
+	_INIT_CMD(0x00, 0xE5, 0x00, 0x3A, 0x00, 0x3A, 0x00, 0x0E,0x10),
+
 	_INIT_CMD(0x00, 0xB5,
 			0x75, 0x60, 0x2D, 0x5D, 0x80, 0x00, 0x0A, 0x0B,
 			0x00, 0x05, 0x0B, 0x00, 0x80, 0x0D, 0x0E, 0x40,
 			0x00, 0x0C, 0x00, 0x16, 0x00, 0xB8, 0x00, 0x80,
 			0x0D, 0x0E, 0x40, 0x00, 0x0C, 0x00, 0x16, 0x00,
 			0xB8, 0x00, 0x81, 0x00, 0x03, 0x03, 0x03, 0x01,
-			0x01),
+			01),
+	_INIT_CMD(0x00, 0xCD,
+			0x00, 0x00, 0x00, 0x19, 0x19, 0x19, 0x19, 0x19,
+			0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19, 0x19,
+			0x16, 0x16),
+
+	_INIT_CMD(0x00, 0xCB, 0x80, 0x5C, 0x07, 0x03, 0x28),
+	_INIT_CMD(0x00, 0xC0, 0x02, 0x02, 0x0F),
 	_INIT_CMD(0x00, 0x55, 0x04, 0x61, 0xDB, 0x04, 0x70, 0xDB),
 	_INIT_CMD(0x00, 0xB0, 0xCA),
 
@@ -574,13 +357,12 @@ static const struct panel_desc lg_panel_desc = {
 	.width_mm = 62,
 	.height_mm = 124,
 
-	.mode_flags = MIPI_DSI_MODE_LPM,
+	.mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 	.on_cmds_1 = lg_sw43408_on_cmds_1,
 	.on_cmds_2 = lg_sw43408_on_cmds_2,
 };
-
 
 static const struct of_device_id panel_of_match[] = {
 	{ .compatible = "lg,sw43408",
@@ -591,39 +373,6 @@ static const struct of_device_id panel_of_match[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, panel_of_match);
-
-static int panel_pinctrl_init(struct panel_info *panel)
-{
-	struct device *dev = &panel->link->dev;
-	int rc = 0;
-
-	panel->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR_OR_NULL(panel->pinctrl)) {
-		rc = PTR_ERR(panel->pinctrl);
-		pr_err("failed to get pinctrl, rc=%d\n", rc);
-		goto error;
-	}
-
-	panel->active = pinctrl_lookup_state(panel->pinctrl,
-							"panel_active");
-	if (IS_ERR_OR_NULL(panel->active)) {
-		rc = PTR_ERR(panel->active);
-		pr_err("failed to get pinctrl active state, rc=%d\n", rc);
-		goto error;
-	}
-
-	panel->suspend =
-		pinctrl_lookup_state(panel->pinctrl, "panel_suspend");
-
-	if (IS_ERR_OR_NULL(panel->suspend)) {
-		rc = PTR_ERR(panel->suspend);
-		pr_err("failed to get pinctrl suspend state, rc=%d\n", rc);
-		goto error;
-	}
-
-error:
-	return rc;
-}
 
 static int panel_add(struct panel_info *pinfo)
 {
@@ -640,32 +389,22 @@ static int panel_add(struct panel_info *pinfo)
 	if (ret < 0)
 		return ret;
 
+	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
+		ret = regulator_set_load(pinfo->supplies[i].consumer,
+					regulator_enable_loads[i]);
+		if (ret)
+			return  dev_err_probe(dev, ret, "failed to set regulator enable loads\n");
+        }
+
+
 	pinfo->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(pinfo->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset gpio %ld\n",
-			PTR_ERR(pinfo->reset_gpio));
-		return PTR_ERR(pinfo->reset_gpio);
-	}
+	if (IS_ERR(pinfo->reset_gpio))
+		return dev_err_probe(dev,PTR_ERR(pinfo->reset_gpio), "cannot get reset gpio\n");
 
-	ret = panel_pinctrl_init(pinfo);
-	if (ret < 0)
-		return ret;
-
-	ret = lg_panel_backlight_init(pinfo);
-	if (ret < 0)
-		return ret;
-
-	drm_panel_init(&pinfo->base, dev, &panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
+	drm_panel_init(&pinfo->base, dev, &panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	drm_panel_add(&pinfo->base);
 	return ret;
-}
-
-static void panel_del(struct panel_info *pinfo)
-{
-	if (pinfo->base.dev)
-		drm_panel_remove(&pinfo->base);
 }
 
 static int panel_probe(struct mipi_dsi_device *dsi)
@@ -705,7 +444,7 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 		DRM_DEV_ERROR(&dsi->dev, "failed to unprepare panel: %d\n",
 				err);
 
-	err = lg_panel_disable(&pinfo->base);
+	err = drm_panel_disable(&pinfo->base);
 	if (err < 0)
 		DRM_DEV_ERROR(&dsi->dev, "failed to disable panel: %d\n", err);
 
@@ -714,7 +453,7 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 		DRM_DEV_ERROR(&dsi->dev, "failed to detach from DSI host: %d\n",
 				err);
 
-	panel_del(pinfo);
+	drm_panel_remove(&pinfo->base);
 
 	return 0;
 }
@@ -722,8 +461,8 @@ static int panel_remove(struct mipi_dsi_device *dsi)
 static void panel_shutdown(struct mipi_dsi_device *dsi)
 {
 	struct panel_info *pinfo = mipi_dsi_get_drvdata(dsi);
-	lg_panel_disable(&pinfo->base);
-	lg_panel_unprepare(&pinfo->base);
+	drm_panel_disable(&pinfo->base);
+	drm_panel_unprepare(&pinfo->base);
 }
 
 static struct mipi_dsi_driver panel_driver = {
